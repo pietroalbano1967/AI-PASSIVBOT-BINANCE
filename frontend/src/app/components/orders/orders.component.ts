@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { OrdersService, Order } from '../../services/orders.service';
 
@@ -9,30 +9,31 @@ import { OrdersService, Order } from '../../services/orders.service';
   templateUrl: './orders.component.html',
   styleUrls: ['./orders.component.scss']
 })
-export class OrdersComponent implements OnInit {
+export class OrdersComponent implements OnInit, OnDestroy {
   orders: Order[] = [];
   paginatedOrders: Order[] = [];
-  currentPage: number = 1;
-  itemsPerPage: number = 15;
+  currentPage = 1;
+  itemsPerPage = 10;
+  private interval?: any;
 
   constructor(private ordersService: OrdersService) {}
 
-  private intervalId?: any;
+  ngOnInit() {
+    this.loadOrders();
+    this.interval = setInterval(() => this.loadOrders(), 5000);
+  }
 
-ngOnInit() {
-  this.loadOrders();
-  this.intervalId = setInterval(() => this.loadOrders(), 5000);
-}
-
-ngOnDestroy() {
-  if (this.intervalId) clearInterval(this.intervalId); // ✅ evita leak
-}
-
+  ngOnDestroy() {
+    if (this.interval) clearInterval(this.interval);
+  }
 
   loadOrders() {
-    this.ordersService.getOrders().subscribe((res) => {
-      this.orders = res.orders.sort((a, b) => b.t - a.t);
-      this.updatePaginatedOrders();
+    this.ordersService.getOrders().subscribe({
+      next: (res: { orders: Order[] }) => {
+        this.orders = res.orders.sort((a, b) => b.t - a.t);
+        this.updatePaginatedOrders();
+      },
+      error: (err: any) => console.error('❌ Errore caricamento ordini:', err)
     });
   }
 
@@ -55,18 +56,13 @@ ngOnDestroy() {
   get pageNumbers(): number[] {
     return Array.from({ length: this.totalPages }, (_, i) => i + 1);
   }
-  saveOrders() {
-  this.ordersService.saveOrders().subscribe({
-    next: (res) => {
-      console.log("✅ Ordini salvati:", res);
-      this.orders = []; // ✅ svuota tabella
-      alert(`✅ ${res.saved} ordini salvati in ${res.file}`);
-    },
-    error: (err) => {
-      console.error("❌ Errore salvataggio ordini:", err);
-      alert("❌ Errore durante il salvataggio ordini");
-    }
-  });
-}
 
+  trackByOrder(index: number, item: Order): number {
+    return item.id;
+  }
+
+  // 👇 aggiunto per compatibilità con HTML
+  saveOrders() {
+    console.log("💾 saveOrders() chiamato (stub) - da implementare se serve davvero");
+  }
 }

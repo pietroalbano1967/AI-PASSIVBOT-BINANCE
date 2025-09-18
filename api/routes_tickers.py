@@ -14,9 +14,10 @@ client = Client(BINANCE_API_KEY, BINANCE_API_SECRET)
 def get_ticker(symbol: str = Query("BTCUSDT")):
     data = client.get_ticker(symbol=symbol)
     return TickerResponse(
-        symbol=data["symbol"],
-        price=float(data["lastPrice"]),
-        volume=float(data["volume"]),
-        high=float(data["highPrice"]),
-        low=float(data["lowPrice"]),
-    )
+    symbol=data["symbol"],
+    price=float(data["lastPrice"]),
+    volume=float(data["volume"]),
+    high=float(data["highPrice"]),
+    low=float(data["lowPrice"]),
+    open=float(data["openPrice"])   # ✅ aggiunto
+)

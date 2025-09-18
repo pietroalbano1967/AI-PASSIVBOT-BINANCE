@@ -1,41 +1,25 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-import pathlib
-from .routes_predict import router as predict_router
-from .ws_candles import router as saved_candles_router
-from .routes_status import router as status_router
+from .ws_candles import router as candles_router
 from .ws_tickers import register_ws_tickers
-from .ws_candles import register_ws_candles
-from .ws_signals import register_ws_signals
-from .routes_predict import router as predict_router
+from .ws_signals import router as signals_router
+from .routes_orders import router as orders_router
 from .routes_tickers import router as tickers_router
-from .routes_candles import router as candles_router
-from .routes_orders import router as orders_router   # ✅ nuovo import
+from .routes_predict import router as predict_router
+from .routes_status import router as status_router
+from .routes_candles import router as candles_rest_router
 
+app = FastAPI()
 
-app = FastAPI(title="Passivbot AI API")
-
-
-app.include_router(tickers_router)
+# WebSocket router
 app.include_router(candles_router)
-app.include_router(saved_candles_router)
-app.include_router(orders_router)   # ✅ collegato qui
+app.include_router(signals_router)
 
-# 🔓 Abilita CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:4200", "http://127.0.0.1:4200", "http://localhost:8000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
-
-# 📥 monta router REST
-app.include_router(status_router)
+# REST router
+app.include_router(orders_router)
+app.include_router(tickers_router)
 app.include_router(predict_router)
-# 📥 registra websocket
+app.include_router(status_router)
+app.include_router(candles_rest_router)
+
+# Funzioni che non usano router
 register_ws_tickers(app)
-register_ws_candles(app)
-register_ws_signals(app)

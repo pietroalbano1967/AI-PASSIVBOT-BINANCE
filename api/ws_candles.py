@@ -1,88 +1,94 @@
-from fastapi import WebSocket, Query
-from binance import AsyncClient, BinanceSocketManager
+from fastapi import APIRouter, WebSocket, Query
 from starlette.websockets import WebSocketDisconnect
-import time
-from fastapi import APIRouter
-import json, pathlib, asyncio
+from binance import AsyncClient, BinanceSocketManager
+import time, asyncio, json, pathlib
 
 router = APIRouter()
 CANDLES_FILE = pathlib.Path("candles.json")
-
 last_save_time = 0  # ⏱ controllo salvataggi
 
 def save_candles(symbol: str, candles: list):
+    """
+    Salva le ultime 200 candele in un file JSON, massimo 1 volta al minuto.
+    """
     global last_save_time
     now = int(time.time())
     if now - last_save_time < 60:  # salva massimo una volta al minuto
         return
     try:
         with open(CANDLES_FILE, "w") as f:
-            json.dump({symbol: candles[-200:]}, f)  # tieni solo ultime 200
+            json.dump({symbol: candles[-200:]}, f)
         last_save_time = now
     except Exception as e:
         print(f"❌ Errore salvataggio candele: {e}")
 
-def register_ws_candles(app):
-    @app.websocket("/ws/candles1s")
-    async def ws_candles_1s(websocket: WebSocket, symbol: str = Query("btcusdt")):
-        await websocket.accept()
-        while True:
-            try:
-                client = await AsyncClient.create()
-                bsm = BinanceSocketManager(client)
-                ts = bsm.trade_socket(symbol.lower())
 
-                candles, current_bucket = [], None
+@router.websocket("/ws/candles1s")
+async def ws_candles_1s(websocket: WebSocket, symbol: str = Query("btcusdt")):
+    """
+    WebSocket che invia candele da 1 secondo costruite dai trade.
+    """
+    print("📡 Connessione WS aperta per", symbol.upper())
+    await websocket.accept()
 
-                async with ts as stream:
-                    while True:
-                        msg = await stream.recv()
-                        if "p" not in msg or "q" not in msg:
-                            continue
+    client = await AsyncClient.create()
+    bsm = BinanceSocketManager(client)
+    ts = bsm.trade_socket(symbol.lower())
 
-                        price = float(msg["p"])
-                        qty = float(msg["q"])
-                        now = int(time.time())  # bucket 1s
+    candles, current_bucket = [], None
 
-                        if current_bucket != now:
-                            current_bucket = now
-                            candles.append({
-                                "t": now,
-                                "s": symbol.upper(),
-                                "o": price, "h": price,
-                                "l": price, "c": price, "v": qty
-                            })
-                        else:
-                            c = candles[-1]
-                            c["h"] = max(c["h"], price)
-                            c["l"] = min(c["l"], price)
-                            c["c"] = price
-                            c["v"] += qty
+    try:
+        async with ts as stream:
+            while True:
+                msg = await stream.recv()
+                if "p" not in msg or "q" not in msg:
+                    continue
 
-                        candles = candles[-200:]
+                price = float(msg["p"])
+                qty = float(msg["q"])
+                now = int(time.time())  # bucket 1s
 
-                        try:
-                            await websocket.send_json(candles[-1])  # invia solo ultima candela
-                        except Exception as e:
-                            print(f"⚠️ WS chiuso: {e}")
-                            return
+                if current_bucket != now:
+                    current_bucket = now
+                    candles.append({
+                        "t": now,
+                        "s": symbol.upper(),
+                        "o": price, "h": price,
+                        "l": price, "c": price, "v": qty
+                    })
+                else:
+                    c = candles[-1]
+                    c["h"] = max(c["h"], price)
+                    c["l"] = min(c["l"], price)
+                    c["c"] = price
+                    c["v"] += qty
 
-            except WebSocketDisconnect:
-                print(f"🔌 Client disconnesso da /ws/candles1s ({symbol.upper()})")
-                break
-            except Exception as e:
-                print(f"⚠️ Errore WS candles {symbol.upper()}: {e}, retry fra 5s")
-                await asyncio.sleep(5)
-            finally:
-                await client.close_connection()
+                candles = candles[-200:]
+                save_candles(symbol.upper(), candles)
+
+                try:
+                    # ✅ Invia sempre l’ultima candela pronta
+                    await websocket.send_json(candles[-1])
+                    print("📡 Candela inviata:", candles[-1])
+                except Exception as e:
+                    print(f"⚠️ WS chiuso: {e}")
+                    break
+
+    except WebSocketDisconnect:
+        print(f"🔌 Client disconnesso da /ws/candles1s ({symbol.upper()})")
+    except Exception as e:
+        print(f"⚠️ Errore WS candles {symbol.upper()}: {e}")
+    finally:
+        await client.close_connection()
 
 
-
-
-    @router.get("/saved_candles/{symbol}")
-    async def get_saved_candles(symbol: str):
-        if CANDLES_FILE.exists():
-            with open(CANDLES_FILE) as f:
-                data = json.load(f)
-            return data.get(symbol.upper(), [])
-        return []
+@router.get("/saved_candles/{symbol}")
+async def get_saved_candles(symbol: str):
+    """
+    Endpoint REST per recuperare le ultime candele salvate.
+    """
+    if CANDLES_FILE.exists():
+        with open(CANDLES_FILE) as f:
+            data = json.load(f)
+        return data.get(symbol.upper(), [])
+    return []

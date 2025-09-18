@@ -1,16 +1,20 @@
-from fastapi import WebSocket, Query
-from binance import AsyncClient, BinanceSocketManager
+from fastapi import APIRouter, WebSocket, Query
 from starlette.websockets import WebSocketDisconnect
+from binance import AsyncClient, BinanceSocketManager
 import numpy as np, time, pandas as pd
 from .ai_utils import compute_features, models, FEATURE_COLUMNS
 import json, pathlib
+
+router = APIRouter()
 
 orders = []  # storico ordini simulati
 order_id = 0
 ORDERS_FILE = pathlib.Path("orders.json")
 CANDLES_FILE = pathlib.Path("candles.json")
-
 last_save_time = 0  # ⏱ controllo frequenza salvataggio
+
+
+# ------------------ Persistenza ------------------
 
 def save_orders():
     try:
@@ -18,6 +22,7 @@ def save_orders():
             json.dump(orders[-500:], f)  # salva max 500 ordini
     except Exception as e:
         print(f"❌ Errore salvataggio ordini: {e}")
+
 
 def load_orders():
     global orders
@@ -28,6 +33,7 @@ def load_orders():
             print(f"📂 Ordini caricati: {len(orders)}")
         except Exception as e:
             print(f"❌ Errore caricamento ordini: {e}")
+
 
 def save_candles(symbol: str, candles: list):
     global last_save_time
@@ -41,6 +47,7 @@ def save_candles(symbol: str, candles: list):
     except Exception as e:
         print(f"❌ Errore salvataggio candele: {e}")
 
+
 def load_candles(symbol: str):
     if CANDLES_FILE.exists():
         try:
@@ -50,130 +57,135 @@ def load_candles(symbol: str):
         except Exception as e:
             print(f"❌ Errore caricamento candele: {e}")
     return []
-            
-def register_ws_signals(app):
-    @app.websocket("/ws/signals")
-    async def ws_signals(websocket: WebSocket, symbol: str = Query("BTCUSDT")):
-        global order_id
 
-        await websocket.accept()
-        client = await AsyncClient.create()
-        bsm = BinanceSocketManager(client)
-        ts = bsm.kline_socket(symbol.lower(), interval="1m")
 
-        closes, highs, lows, volumes = [], [], [], []
+# ------------------ WebSocket segnali AI ------------------
 
-        try:
-            async with ts as stream:
-                while True:
-                    msg = await stream.recv()
-                    k = msg["k"]
+@router.websocket("/ws/signals")
+async def ws_signals(websocket: WebSocket, symbol: str = Query("BTCUSDT")):
+    global order_id
 
-                    closes.append(float(k["c"]))
-                    highs.append(float(k["h"]))
-                    lows.append(float(k["l"]))
-                    volumes.append(float(k["v"]))
-                    closes, highs, lows, volumes = closes[-300:], highs[-300:], lows[-300:], volumes[-300:]
+    await websocket.accept()
+    client = await AsyncClient.create()
+    bsm = BinanceSocketManager(client)
+    ts = bsm.kline_socket(symbol.lower(), interval="1m")
 
-                    if len(closes) < 20:
-                        continue
+    closes, highs, lows, volumes = [], [], [], []
 
-                    df = pd.DataFrame({
-                        "open": closes,
-                        "close": closes,
-                        "high": highs,
-                        "low": lows,
-                        "volume": volumes
-                    })
+    try:
+        async with ts as stream:
+            while True:
+                msg = await stream.recv()
+                k = msg["k"]
 
-                    # ✅ prepara solo ultime 300 candele lato server
-                    candles_data = [
-                        {"t": int(time.time()), "o": float(o), "h": float(h),
-                         "l": float(l), "c": float(c), "v": float(v)}
-                        for o, h, l, c, v in zip(
-                            closes[-300:], highs[-300:], lows[-300:], closes[-300:], volumes[-300:]
-                        )
-                    ]
-                    save_candles(symbol.upper(), candles_data)
+                closes.append(float(k["c"]))
+                highs.append(float(k["h"]))
+                lows.append(float(k["l"]))
+                volumes.append(float(k["v"]))
+                closes, highs, lows, volumes = closes[-300:], highs[-300:], lows[-300:], volumes[-300:]
 
-                    df = compute_features(df)
-                    if df.empty:
-                        continue
+                if len(closes) < 20:
+                    continue
 
-                    for col in FEATURE_COLUMNS:
-                        if col not in df.columns:
-                            df[col] = 0
+                df = pd.DataFrame({
+                    "open": closes,
+                    "close": closes,
+                    "high": highs,
+                    "low": lows,
+                    "volume": volumes
+                })
 
-                    X = df[FEATURE_COLUMNS].iloc[[-1]].fillna(0)
+                # ✅ prepara solo ultime 300 candele lato server
+                candles_data = [
+                    {"t": int(time.time()), "o": float(o), "h": float(h),
+                     "l": float(l), "c": float(c), "v": float(v)}
+                    for o, h, l, c, v in zip(
+                        closes[-300:], highs[-300:], lows[-300:], closes[-300:], volumes[-300:]
+                    )
+                ]
+                save_candles(symbol.upper(), candles_data)
 
-                    model = models.get(symbol.upper())
-                    if not model:
-                        continue
+                df = compute_features(df)
+                if df.empty:
+                    continue
 
+                for col in FEATURE_COLUMNS:
+                    if col not in df.columns:
+                        df[col] = 0
+
+                X = df[FEATURE_COLUMNS].iloc[[-1]].fillna(0)
+
+                model = models.get(symbol.upper())
+                if not model:
+                    continue
+
+                try:
+                    proba = model.predict_proba(X)[0]
+                    pred = int(np.argmax(proba))
+
+                    labels = ["Strong SELL", "Weak SELL", "HOLD", "Weak BUY", "Strong BUY"]
+                    signal = labels[pred]
+                    confidence = float(proba[pred])
+                    price = float(closes[-1])
+                    ts_now = int(time.time())
+
+                    probs_dict = {labels[i]: round(float(p), 3) for i, p in enumerate(proba)}
+
+                    # 💾 simulazione ordini con limite memoria
+                    action = None
+                    if ("BUY" in signal or "SELL" in signal) and confidence > 0.55:
+                        order_id += 1
+                        action = "BUY" if "BUY" in signal else "SELL"
+                        order = {
+                            "id": order_id,
+                            "t": ts_now,
+                            "symbol": symbol.upper(),
+                            "price": price,
+                            "signal": signal,
+                            "confidence": round(confidence, 3),
+                            "side": action
+                        }
+                        orders.append(order)
+                        orders[:] = orders[-200:]  # ✅ max 200 ordini lato server
+                        save_orders()
+                        print(f"💾 Ordine simulato: {order}")
+
+                    last_row = df.iloc[-1]
+
+                    # ✅ invia solo l’ultimo segnale
                     try:
-                        proba = model.predict_proba(X)[0]
-                        pred = int(np.argmax(proba))
-
-                        labels = ["Strong SELL", "Weak SELL", "HOLD", "Weak BUY", "Strong BUY"]
-                        signal = labels[pred]
-                        confidence = float(proba[pred])
-                        price = float(closes[-1])
-                        ts_now = int(time.time())
-
-                        probs_dict = {labels[i]: round(float(p), 3) for i, p in enumerate(proba)}
-
-                        # 💾 simulazione ordini con limite memoria
-                        action = None
-                        if ("BUY" in signal or "SELL" in signal) and confidence > 0.55:
-                            order_id += 1
-                            action = "BUY" if "BUY" in signal else "SELL"
-                            order = {
-                                "id": order_id,
-                                "t": ts_now,
-                                "symbol": symbol.upper(),
-                                "price": price,
-                                "signal": signal,
-                                "confidence": round(confidence, 3),
-                                "side": action
-                            }
-                            orders.append(order)
-                            orders[:] = orders[-200:]  # ✅ max 200 ordini lato server
-                            save_orders()
-                            print(f"💾 Ordine simulato: {order}")
-
-                        last_row = df.iloc[-1]
-
-                        # ✅ invia solo l’ultimo segnale, non tutta la lista
-                        try:
-                            await websocket.send_json({
-                                "symbol": symbol.upper(),
-                                "close": price,
-                                "ma5": float(last_row["ma5"]),
-                                "ma20": float(last_row["ma20"]),
-                                "rsi": float(last_row["rsi"]),
-                                "signal": signal,
-                                "confidence": round(confidence, 3),
-                                "probs": probs_dict,
-                                "action": action,
-                                "t": ts_now
-                            })
-                        except Exception as e:
-                            print(f"⚠️ WS chiuso, stop invio signals: {e}")
-                            return
-
+                        await websocket.send_json({
+                            "symbol": symbol.upper(),
+                            "close": price,
+                            "ma5": float(last_row["ma5"]),
+                            "ma20": float(last_row["ma20"]),
+                            "rsi": float(last_row["rsi"]),
+                            "signal": signal,
+                            "confidence": round(confidence, 3),
+                            "probs": probs_dict,
+                            "action": action,
+                            "t": ts_now
+                        })
                     except Exception as e:
-                        print(f"❌ Errore predizione: {e}")
-                        continue
+                        print(f"⚠️ WS chiuso, stop invio signals: {e}")
+                        return
 
-        except WebSocketDisconnect:
-            print(f"🔌 Client disconnesso da /ws/signals ({symbol.upper()})")
-        finally:
-            await client.close_connection()
+                except Exception as e:
+                    print(f"❌ Errore predizione: {e}")
+                    continue
+
+    except WebSocketDisconnect:
+        print(f"🔌 Client disconnesso da /ws/signals ({symbol.upper()})")
+    finally:
+        await client.close_connection()
 
 
-    # carica ordini salvati al riavvio
-    load_orders()
+# ------------------ Endpoint REST ordini ------------------
 
-    @app.get("/simulated_orders")
-    def get_orders():
-        return {"orders": orders}
+@router.get("/simulated_orders")
+def get_orders():
+    return {"orders": orders}
+
+
+# carica ordini salvati al riavvio
+load_orders()

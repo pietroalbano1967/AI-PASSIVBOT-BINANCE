@@ -18,6 +18,14 @@ export interface TickerResponse {
   high: number;
   low: number;
 }
+export interface TickerResponse {
+  symbol: string;
+  price: number;
+  volume: number;
+  high: number;
+  low: number;
+  open: number;   // ✅ aggiunto
+}
 
 export interface CandleResponse {
   t: number;

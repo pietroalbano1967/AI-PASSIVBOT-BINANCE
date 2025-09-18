@@ -1,4 +1,6 @@
-# See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+# ============================================================
+# ANGULAR / NODE STANDARD IGNORE
+# ============================================================
 
 # Compiled output
 /dist
@@ -6,7 +8,7 @@
 /out-tsc
 /bazel-out
 
-# Node
+# Node dependencies
 /node_modules
 npm-debug.log
 yarn-error.log
@@ -40,10 +42,44 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
-/config/exmples
-/historical_data
-# .gitignore
-api/model_rf.pkl
-api/model_pro.pkl
-caches/**
-backtests/**/fills.csv
+
+# ============================================================
+# PROGETTO AI-PASSIVBOT-BINANCE SPECIFICO
+# ============================================================
+
+# Config locali e dataset
+config/examples/
+historical_data/
+
+# Modelli ML pesanti
+api/*.pkl
+
+# Cache di training e dataset numpy
+caches/
+*.npy
+*.npy.gz
+
+# Risultati di backtest e CSV pesanti
+backtests/
+*/backtests/**/*.csv
+
+# Ambiente virtuale Python
+venv/
+
+# File temporanei Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Log e file temporanei
+*.log
+*.tmp
+# Modelli ML e dataset
+api/*.pkl
+*.npy
+*.npy.gz
+
+# Cache e backtest
+caches/
+backtests/
+*/backtests/**/*.csv

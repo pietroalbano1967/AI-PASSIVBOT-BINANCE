@@ -9,6 +9,8 @@ export interface DashboardState {
   orders: any[];
   currentSymbol: string;
   ma20Data: any[];
+  ma50Data: any[];      // ✅ nuovo campo
+  volumeData: any[];    // ✅ nuovo campo
   rsiData: any[];
 }
 
@@ -23,6 +25,8 @@ export class DashboardStateService {
     orders: [],
     currentSymbol: 'BTCUSDT',
     ma20Data: [],
+    ma50Data: [],        // ✅ inizializzato
+    volumeData: [],      // ✅ inizializzato
     rsiData: []
   });
 
@@ -38,18 +42,17 @@ export class DashboardStateService {
 
   private saveTimer?: any;
 
-updateState(partialState: Partial<DashboardState>) {
-  const currentState = this.stateSubject.value;
-  const newState = { ...currentState, ...partialState };
-  this.stateSubject.next(newState);
+  updateState(partialState: Partial<DashboardState>) {
+    const currentState = this.stateSubject.value;
+    const newState = { ...currentState, ...partialState };
+    this.stateSubject.next(newState);
 
-  // ✅ debounce: salva max ogni 5s
-  if (this.saveTimer) clearTimeout(this.saveTimer);
-  this.saveTimer = setTimeout(() => {
-    localStorage.setItem('dashboardState', JSON.stringify(newState));
-  }, 5000);
-}
-
+    // ✅ debounce: salva max ogni 5s
+    if (this.saveTimer) clearTimeout(this.saveTimer);
+    this.saveTimer = setTimeout(() => {
+      localStorage.setItem('dashboardState', JSON.stringify(newState));
+    }, 5000);
+  }
 
   getCurrentState(): DashboardState {
     return this.stateSubject.value;
@@ -63,6 +66,8 @@ updateState(partialState: Partial<DashboardState>) {
       orders: [],
       currentSymbol: 'BTCUSDT',
       ma20Data: [],
+      ma50Data: [],       // ✅ inizializzato
+      volumeData: [],     // ✅ inizializzato
       rsiData: []
     };
     this.stateSubject.next(emptyState);

@@ -1,0 +1,13 @@
+.chart-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Rimuove cifre e asse Y nel grafico volumi */
+:host ::ng-deep #volume .apexcharts-yaxis-label,
+:host ::ng-deep #volume .apexcharts-yaxis,
+:host ::ng-deep #volume .apexcharts-yaxis-tick,
+:host ::ng-deep #volume .apexcharts-yaxis line {
+  display: none !important;
+}

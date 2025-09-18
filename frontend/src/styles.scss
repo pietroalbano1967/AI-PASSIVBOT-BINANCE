@@ -1,1 +1,8 @@
-/* You can add global styles to this file, and also import other style files */
+.apexcharts-text,
+.apexcharts-legend-text,
+.apexcharts-tooltip-text {
+  fill: #ffffff !important;
+  color: #ffffff !important;
+  font-size: 12px;
+}
+

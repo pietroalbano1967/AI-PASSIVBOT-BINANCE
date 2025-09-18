@@ -14,19 +14,11 @@ export interface Order {
 
 @Injectable({ providedIn: 'root' })
 export class OrdersService {
-  private baseUrl = 'http://127.0.0.1:8000';
+  private baseUrl = 'http://localhost:8000';
 
   constructor(private http: HttpClient) {}
 
   getOrders(): Observable<{ orders: Order[] }> {
     return this.http.get<{ orders: Order[] }>(`${this.baseUrl}/simulated_orders`);
   }
-  saveOrders(): Observable<any> {
-  return this.http.post(`${this.baseUrl}/save_orders`, {});
 }
-// ✅ Aggiungi questo metodo se non esiste
-  getSimulatedOrders(): Observable<Order[]> {
-    return this.http.get<Order[]>(`${this.baseUrl}/simulated_orders`);
-  }
-}
-

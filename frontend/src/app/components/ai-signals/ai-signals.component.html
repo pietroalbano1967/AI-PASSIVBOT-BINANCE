@@ -1,0 +1,20 @@
+<div class="signals-table-container">
+  <table class="styled-table">
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Close</th>
+        <th>Signal</th>
+        <th>Conf.</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let s of signals">
+        <td>{{ s.t * 1000 | date:'shortTime' }}</td>
+        <td>{{ s.close | number:'1.2-2' }}</td>
+        <td>{{ s.signal }}</td>
+        <td>{{ s.confidence | percent:'1.0-1' }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,7 @@
+<div class="tickers-grid">
+  <div *ngFor="let t of tickers" class="ticker-card">
+    <div class="symbol">{{ t.s }}</div>
+    <div class="price">{{ t.c | number:'1.2-2' }}</div>
+    <div class="volume">Vol: {{ t.v | number:'1.0-0' }}</div>
+  </div>
+</div>

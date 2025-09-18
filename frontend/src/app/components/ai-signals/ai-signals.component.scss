@@ -1,0 +1,54 @@
+.table-container {
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.styled-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+
+  thead {
+    background-color: #2a2e39;
+    th {
+      color: #ddd;
+      padding: 0.4rem;
+    }
+  }
+
+  tbody tr {
+    border-bottom: 1px solid #2a2e39;
+    &:hover {
+      background-color: #2c313c;
+    }
+  }
+
+  td {
+    padding: 0.4rem;
+    color: #eee;
+  }
+
+  .latest-buy {
+    background-color: rgba(38, 166, 154, 0.2);
+  }
+  .latest-sell {
+    background-color: rgba(239, 83, 80, 0.2);
+  }
+  .latest-hold {
+    background-color: rgba(255, 193, 7, 0.2);
+  }
+}
+.signals-table-container {
+  max-height: 400px; /* altezza per 10 righe */
+  overflow-y: auto;
+}
+
+.styled-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.styled-table th, .styled-table td {
+  padding: 8px 12px;
+  text-align: center;
+}

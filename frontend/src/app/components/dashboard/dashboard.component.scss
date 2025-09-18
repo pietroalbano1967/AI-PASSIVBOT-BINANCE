@@ -1,192 +1,119 @@
-.dashboard-container {
-  display: flex;
-  flex-direction: column;
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 colonne */
+  grid-template-rows: 400px 300px 300px; /* esempio */
   gap: 20px;
   padding: 20px;
-  background: #f5f7fa;
+  background: #121212;
+  color: #fff;
   min-height: 100vh;
 }
 
-/* Layout principale: 2 colonne */
-.row {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 20px;
-}
-
-.col-left,
-.col-right {
+.grid-item {
   display: flex;
   flex-direction: column;
-  gap: 20px;
 }
 
-/* Cards */
 .card {
-  background: #fff;
+  background: #1e1e2f;
   border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
   padding: 15px;
+  flex: 1;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  overflow: hidden; /* Importante per gestire scroll */
 }
 
-h2 {
-  font-size: 18px;
+.card h2 {
   margin-bottom: 10px;
+  font-size: 18px;
   font-weight: 600;
-  color: #333;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 5px;
 }
 
-/* Tabelle */
-.table-container {
-  overflow-x: auto;
-}
-
-.styled-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-.styled-table th,
-.styled-table td {
-  padding: 8px 12px;
-  border-bottom: 1px solid #eee;
-  text-align: center;
-}
-.styled-table th {
-  background: #f0f2f5;
-  font-weight: 600;
-}
-
-/* Evidenziazione */
-.latest-buy { background: #e8f5e9; }
-.latest-sell { background: #ffebee; }
-.latest-hold { background: #e3f2fd; }
-.order-buy { color: #26a69a; font-weight: 600; }
-.order-sell { color: #ef5350; font-weight: 600; }
-
-/* MiniTicker come card */
-.tickers-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
-  margin-top: 10px;
-}
-.ticker-card {
-  background: #ffffff;
-  border-radius: 10px;
-  padding: 10px 12px;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
-  cursor: pointer;
-  transition: all 0.2s ease;
+.card-body {
+  flex: 1;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
-.ticker-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.12);
-}
-.ticker-header {
-  display: flex;
-  justify-content: space-between;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-.ticker-body { display: flex; flex-direction: column; gap: 4px; }
-.symbol { font-size: 14px; color: #333; }
-.price { font-size: 16px; font-weight: 700; color: #1976d2; }
-.volume { font-size: 12px; color: #888; }
-.change { font-size: 13px; font-weight: 600; }
-.change.positive { color: #26a69a; }
-.change.negative { color: #ef5350; }
 
-/* Segnali AI scrollabili (max 10 righe) */
-.signals-card .limited-rows {
-  max-height: 300px; /* altezza fissa */
+.card-body.scrollable {
   overflow-y: auto;
 }
-.signals-card tbody tr {
-  font-size: 13px;
+
+/* Altezza fissa per tabella AI con scroll a 10 righe */
+app-ai-signals {
+  max-height: 400px; /* ~10 righe */
+  overflow-y: auto;
+  display: block;
 }
 
-/* Responsive */
-@media (max-width: 1200px) {
-  .row { grid-template-columns: 1fr; }
-}
-// Aggiungi questi stili in fondo al file
 
-/* Controlli paginazione */
-.pagination-controls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 15px;
-  gap: 15px;
+
+/* Area candele più grande (2 righe) */
+.candle-area .card {
+  height: calc(100% - 10px);
+}
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 colonne */
+  grid-template-rows: auto auto auto auto auto; /* 5 righe */
+  gap: 20px;
 }
 
-.pagination-btn {
-  padding: 8px 15px;
-  background: #1976d2;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
-
-  &:hover:not(:disabled) {
-    background: #1565c0;
-  }
-
-  &:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-  }
+.card {
+  background: #222;
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  height: 100%;
 }
 
-.page-info {
-  font-weight: 500;
-  color: #555;
+.card h2 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  color: #fff;
+}
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 colonne */
+  grid-template-rows: auto auto auto auto auto; /* 5 righe */
+  gap: 20px;
 }
 
-.no-orders {
-  text-align: center;
-  padding: 20px;
-  color: #888;
-  font-style: italic;
+.card {
+  background: #222;
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  height: 100%;
 }
 
-/* Miglioramenti alla tabella */
-.styled-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-
-  th, td {
-    padding: 8px 12px;
-    border-bottom: 1px solid #eee;
-    text-align: center;
-  }
-
-  th {
-    background: #f0f2f5;
-    font-weight: 600;
-    position: sticky;
-    top: 0;
-  }
-
-  tr:hover {
-    background-color: #f9f9f9;
-  }
+.card h2 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  color: #fff;
+}
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 colonne */
+  grid-template-rows: auto auto auto auto; /* 4 righe */
+  gap: 20px;
 }
 
-/* Miglioramenti alle card dei ticker */
-.ticker-card {
-  cursor: pointer;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
+.card {
+  background: #222;
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  height: 100%;
+}
+
+.card h2 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  color: #fff;
 }
