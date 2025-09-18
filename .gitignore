@@ -11,3 +11,13 @@ venv/
 # Cache / build
 *.log
 *.sqlite3
+# Escludi file e cartelle pesanti
+api/*.pkl
+caches/**
+backtests/**/fills.csv
+
+# Ambiente virtuale e cache Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
