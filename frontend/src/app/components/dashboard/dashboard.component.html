@@ -1,25 +1,29 @@
 <div class="dashboard-grid">
   <!-- 📊 Candlestick -->
   <div class="grid-item" style="grid-row: 1 / span 2; grid-column: 1 / span 2;">
-    <div class="card">
-      <h2>📊 {{ currentSymbol }} Candlestick</h2>
-      <app-candle-chart [symbol]="currentSymbol" [mode]="'main'"></app-candle-chart>
-    </div>
+  <div class="card">
+    <app-candle-chart 
+  [symbol]="currentSymbol"
+  *ngIf="currentSymbol">
+</app-candle-chart>
   </div>
+</div>
 
-  <!-- 💹 MiniTicker (2 righe in altezza) -->
-  <div class="grid-item" style="grid-row: 1 / span 2; grid-column: 3;">
-    <div class="card">
-      <h2>💹 MiniTicker</h2>
-      <app-mini-ticker></app-mini-ticker>
-    </div>
+<div class="grid-item" style="grid-row: 1 / span 2; grid-column: 3;">
+  <div class="card">
+    <h2>💹 MiniTicker</h2>
+    <app-mini-ticker (symbolSelected)="currentSymbol = $event"></app-mini-ticker>
+
   </div>
+</div>
+
+
 
   <!-- 📊 Volumi -->
   <div class="grid-item" style="grid-row: 3; grid-column: 1 / span 2;">
     <div class="card">
       <h2>📊 Volumi</h2>
-      <app-candle-chart [symbol]="currentSymbol" [mode]="'volume'"></app-candle-chart>
+      <!-- vuoto per adesso -->
     </div>
   </div>
 
@@ -27,7 +31,7 @@
   <div class="grid-item" style="grid-row: 3; grid-column: 3;">
     <div class="card">
       <h2>🤖 AI Signals</h2>
-      <app-ai-signals></app-ai-signals>
+      <!-- vuoto per adesso -->
     </div>
   </div>
 
@@ -35,7 +39,7 @@
   <div class="grid-item" style="grid-row: 4; grid-column: 1;">
     <div class="card">
       <h2>📈 RSI (14)</h2>
-      <app-candle-chart [symbol]="currentSymbol" [mode]="'rsi'"></app-candle-chart>
+      <!-- vuoto per adesso -->
     </div>
   </div>
 
@@ -43,7 +47,7 @@
   <div class="grid-item" style="grid-row: 4; grid-column: 2;">
     <div class="card">
       <h2>📉 MACD (12,26,9)</h2>
-      <app-candle-chart [symbol]="currentSymbol" [mode]="'macd'"></app-candle-chart>
+      <!-- vuoto per adesso -->
     </div>
   </div>
 
@@ -51,7 +55,7 @@
   <div class="grid-item" style="grid-row: 4; grid-column: 3;">
     <div class="card">
       <h2>📑 Orders</h2>
-      <app-orders></app-orders>
+      <!-- vuoto per adesso -->
     </div>
   </div>
 </div>

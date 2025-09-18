@@ -11,8 +11,7 @@ import { DashboardStateService } from '../../services/dashboard-state.service';
 // Import dei componenti
 import { CandleChartComponent } from '../candle-chart/candle-chart.component';
 import { MiniTickerComponent } from '../mini-ticker/mini-ticker.component';
-import { AiSignalsComponent } from '../ai-signals/ai-signals.component';
-import { TradingSignalsComponent } from '../trading-signals/trading-signals.component';
+
 import { OrdersComponent } from '../orders/orders.component';
 @Component({
   selector: 'app-dashboard',
@@ -23,9 +22,6 @@ import { OrdersComponent } from '../orders/orders.component';
     FormsModule,
     CandleChartComponent,
     MiniTickerComponent,
-    AiSignalsComponent,
-    TradingSignalsComponent,
-    OrdersComponent,
     NgApexchartsModule,  
   ],
   templateUrl: './dashboard.component.html',
@@ -77,6 +73,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.updatePaginatedOrders();
     });
   }
+  
+// dashboard.component.ts
+onSymbolSelected(symbol: string) {
+  console.log("📊 Nuovo simbolo selezionato:", symbol);
+  this.currentSymbol = symbol.toUpperCase();
+  
+  // Forza il cambio detection e il reload del componente candele
+  setTimeout(() => {
+    // Questo assicura che Angular rilevi il cambio e distrugga/ricrei il componente
+    this.currentSymbol = symbol.toUpperCase();
+  }, 0);
+}
+
+
 
   reloadModel() {
     this.api.reloadModel().subscribe({

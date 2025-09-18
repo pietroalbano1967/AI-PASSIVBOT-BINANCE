@@ -1,9 +1,30 @@
+<!-- candle-chart.component.html -->
+<div *ngIf="loading" class="loading">
+  ⏳ Caricamento dati {{ symbol }}...
+  <div>Controlla la console per i log di debug</div>
+</div>
+
 <apx-chart
-  #chart
-  [series]="series"
+  *ngIf="!loading && candles.length > 0"
+  [series]="chartOptions.series!"
   [chart]="chartOptions.chart!"
   [xaxis]="chartOptions.xaxis!"
   [yaxis]="chartOptions.yaxis!"
-  [stroke]="chartOptions.stroke!"
-  [plotOptions]="chartOptions.plotOptions!">
+  [title]="chartOptions.title!">
 </apx-chart>
+
+<div *ngIf="!loading && candles.length === 0 && !errorMessage" class="no-data">
+  ⚠️ Nessun dato disponibile per {{ symbol }}
+  <button (click)="retry()" class="retry-btn">Riprova</button>
+</div>
+
+<div *ngIf="errorMessage" class="error">
+  ❌ Errore: {{ errorMessage }}
+  <button (click)="retry()" class="retry-btn">Riprova</button>
+  <button (click)="testBackendConnection()" class="retry-btn">Test Backend</button>
+</div>
+
+<!-- Debug info -->
+<div *ngIf="!loading && candles.length > 0" class="debug-info">
+  <small>Dati caricati: {{ candles.length }} candele - Ultimo aggiornamento: {{ candles[candles.length - 1].x | date:'HH:mm:ss' }}</small>
+</div>

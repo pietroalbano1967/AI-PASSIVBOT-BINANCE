@@ -1,57 +1,43 @@
 .tickers-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
 }
 
 .ticker-card {
-  background: #2a2e39;
-  border-radius: 8px;
-  padding: 0.6rem;
-  cursor: pointer;
-  transition: transform 0.2s, background 0.3s;
+  padding: 8px;
+  border-radius: 6px;
+  background: #1e222d;
   color: #fff;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+
+  .symbol {
+    font-weight: bold;
+    font-size: 14px;
+  }
+
+  .price {
+    font-size: 13px;
+  }
+
+  .change {
+    font-size: 12px;
+  }
 
   &:hover {
+    background: #2c3140;
     transform: scale(1.05);
-    background: #323846;
   }
 
-  &.active {
-    border: 2px solid #1976d2;
+  &.positive {
+    border: 1px solid #26a69a;
+    color: #26a69a;
   }
 
-  .ticker-header {
-    display: flex;
-    justify-content: space-between;
-    font-weight: bold;
-    margin-bottom: 0.3rem;
-
-    .symbol {
-      color: #f5f5f5;
-    }
-
-    .change {
-      font-size: 0.85rem;
-
-      &.positive {
-        color: #26a69a;
-      }
-      &.negative {
-        color: #ef5350;
-      }
-    }
-  }
-
-  .ticker-body {
-    .price {
-      font-size: 1rem;
-      font-weight: bold;
-      color: #ffd54f;
-    }
-    .volume {
-      font-size: 0.8rem;
-      color: #aaa;
-    }
+  &.negative {
+    border: 1px solid #ef5350;
+    color: #ef5350;
   }
 }

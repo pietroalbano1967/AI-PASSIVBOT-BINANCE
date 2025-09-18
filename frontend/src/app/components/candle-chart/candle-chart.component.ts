@@ -1,11 +1,38 @@
-import { Component, OnInit, OnDestroy, Input, ViewChild } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  OnChanges,
+  SimpleChanges,
+  ViewChild,
+  Input
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
+  ApexAxisChartSeries,
+  ApexChart,
+  ApexXAxis,
+  ApexTitleSubtitle,
+  ApexYAxis,
   ChartComponent,
-  NgApexchartsModule,
-  ApexOptions
+  NgApexchartsModule
 } from 'ng-apexcharts';
+import { Subscription } from 'rxjs';
 import { CandleService, Candle } from '../../services/candle.service';
+import { WsService } from '../../services/ws.service';
+
+export type ChartOptions = {
+  series: ApexAxisChartSeries;
+  chart: ApexChart;
+  xaxis: ApexXAxis;
+  yaxis: ApexYAxis;
+  title: ApexTitleSubtitle;
+};
+
+export interface CandleSeries {
+  x: Date;
+  y: [number, number, number, number];
+}
 
 @Component({
   selector: 'app-candle-chart',
@@ -14,237 +41,223 @@ import { CandleService, Candle } from '../../services/candle.service';
   templateUrl: './candle-chart.component.html',
   styleUrls: ['./candle-chart.component.scss']
 })
-export class CandleChartComponent implements OnInit, OnDestroy {
-  @Input() symbol: string = 'BTCUSDT';
-  @Input() mode: 'main' | 'volume' | 'rsi' | 'macd' = 'main';
-
+export class CandleChartComponent implements OnInit, OnDestroy, OnChanges {
   @ViewChild('chart') chart!: ChartComponent;
+  @Input() symbol: string = 'BTCUSDT';
 
-  candles: Candle[] = [];
+  public chartOptions: Partial<ChartOptions>;
+  private wsSub?: Subscription;
+  candles: CandleSeries[] = [];
+  loading: boolean = true;
+  errorMessage: string = '';
 
-  chartOptions: Partial<ApexOptions> = {};
-  series: any[] = [];
+  constructor(
+    private candleService: CandleService,
+    private wsService: WsService
+  ) {
+    this.chartOptions = {
+      series: [{ name: 'candles', data: [] }],
+      chart: { 
+        type: 'candlestick', 
+        height: 500,
+        background: '#1e222d',
+        toolbar: {
+          show: true,
+          tools: {
+            download: true,
+            selection: true,
+            zoom: true,
+            zoomin: true,
+            zoomout: true,
+            pan: true,
+            reset: true
+          }
+        }
+      },
+      title: { 
+        text: 'BTCUSDT Candlestick', 
+        align: 'left',
+        style: {
+          color: '#fff',
+          fontSize: '16px'
+        }
+      },
+      xaxis: { 
+        type: 'datetime',
+        labels: {
+          style: {
+            colors: '#ccc'
+          }
+        }
+      },
+      yaxis: { 
+        tooltip: { enabled: true },
+        labels: {
+          style: {
+            colors: '#ccc'
+          }
+        }
+      }
+    };
+  }
 
-  private subscription: any;
+  ngOnInit(): void {
+    console.log('📈 CandleChartComponent inizializzato con simbolo:', this.symbol);
+    this.loadData();
+  }
 
-  constructor(private candleService: CandleService) {}
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['symbol'] && changes['symbol'].currentValue !== changes['symbol'].previousValue) {
+      console.log('🔄 Cambio simbolo:', this.symbol);
+      this.stopStream();
+      this.clearChartData();
+      this.loadData();
+    }
+  }
 
-  ngOnInit() {
-    this.subscription = this.candleService.connect(this.symbol).subscribe((c: Candle) => {
-      const idx = this.candles.findIndex(x => x.t === c.t);
-      if (idx >= 0) this.candles[idx] = c;
-      else this.candles.push(c);
+  ngOnDestroy(): void {
+    this.stopStream();
+  }
 
-      // ✅ massimo 50 candele
-      this.candles = this.candles.slice(-50);
+  retry() {
+    this.errorMessage = '';
+    this.loadData();
+  }
 
-      this.updateChart();
+ private loadData() {
+  console.log('🔁 loadData chiamato per:', this.symbol);
+  this.stopStream();
+  this.clearChartData();
+  this.loading = true;
+  this.errorMessage = '';
+
+  // 1️⃣ storico REST
+  console.log('📡 Richiesta REST per:', this.symbol);
+  this.candleService.getCandles(this.symbol, '1m', 100).subscribe({
+    next: (candles: Candle[]) => {
+      console.log('✅ Dati REST ricevuti:', candles.length, 'candele');
+      
+      if (candles && candles.length > 0) {
+        this.candles = candles.map(c => ({
+          x: new Date(c.t * 1000),
+          y: [c.o, c.h, c.l, c.c]
+        }));
+        
+        console.log('📊 Candele processate:', this.candles.length);
+        
+        // Aggiorna il chart
+        this.chartOptions = {
+          ...this.chartOptions,
+          series: [{ name: 'candles', data: [...this.candles] }]
+        };
+        
+        // 2️⃣ Connetti WebSocket SOLO dopo i dati REST
+        this.connectWebSocket();
+      } else {
+        this.errorMessage = 'Nessun dato disponibile';
+      }
+
+      this.loading = false;
+    },
+    error: (err) => {
+      console.error('❌ Errore caricamento storico:', err);
+      this.loading = false;
+      this.errorMessage = 'Errore caricamento dati';
+    }
+  });
+}
+
+  // candle-chart.component.ts
+private connectWebSocket() {
+  console.log('📡 Tentativo connessione WS per:', this.symbol.toLowerCase());
+  
+  this.stopStream();
+  
+  this.wsSub = this.wsService
+    .connectCandles(this.symbol.toLowerCase(), '1s')
+    .subscribe({
+      next: (wsData: any) => {
+        console.log('📡 Dati WS ricevuti:', wsData);
+        this.updateCandles(wsData);  // ← Passa direttamente i dati WS
+      },
+      error: (err: any) => {
+        console.error('❌ Errore WS subscription:', err);
+        // Prova a riconnettere dopo 5 secondi
+        setTimeout(() => this.connectWebSocket(), 5000);
+      },
+      complete: () => {
+        console.log('🔌 WS subscription completata');
+      }
+    });
+}
+
+  private clearChartData() {
+    this.candles = [];
+    this.chartOptions = {
+      ...this.chartOptions,
+      series: [{ name: 'candles', data: [] }]
+    };
+  }
+
+  private stopStream() {
+    if (this.wsSub) {
+      this.wsSub.unsubscribe();
+      this.wsSub = undefined;
+      console.log('🔌 WebSocket disconnesso');
+    }
+    this.wsService.disconnect();
+  }
+
+  public testBackendConnection() {
+    this.candleService.testConnection().subscribe({
+      next: (res) => console.log('✅ Backend raggiungibile', res),
+      error: (err) => {
+        console.error('❌ Backend non raggiungibile', err);
+        this.errorMessage = 'Backend non raggiungibile. Verifica che il server sia in esecuzione.';
+        this.loading = false;
+      }
     });
   }
 
-  ngOnDestroy() {
-    this.candleService.disconnect();
-    if (this.subscription) this.subscription.unsubscribe();
+// candle-chart.component.ts
+private updateCandles(wsData: any) {
+  console.log('📡 Dato WS ricevuto:', wsData);
+  
+  // Normalizza i dati - il WS usa 's' invece di 'symbol'
+  const candle: Candle = {
+    t: wsData.t || Math.floor(Date.now() / 1000),
+    symbol: wsData.symbol || wsData.s,  // ← 's' invece di 'symbol'
+    o: Number(wsData.o || wsData.open),
+    h: Number(wsData.h || wsData.high), 
+    l: Number(wsData.l || wsData.low),
+    c: Number(wsData.c || wsData.close),
+    v: Number(wsData.v || wsData.volume)
+  };
+
+  console.log('🔄 Candela normalizzata:', candle);
+
+  const lastCandle = this.candles[this.candles.length - 1];
+
+  if (lastCandle && lastCandle.x.getTime() === candle.t * 1000) {
+    // Aggiorna candela esistente
+    lastCandle.y = [candle.o, candle.h, candle.l, candle.c];
+  } else {
+    // Aggiungi nuova candela
+    this.candles.push({
+      x: new Date(candle.t * 1000),
+      y: [candle.o, candle.h, candle.l, candle.c]
+    });
+
+    // Mantieni solo ultime 200 candele
+    if (this.candles.length > 200) {
+      this.candles.shift();
+    }
   }
 
-  private updateChart() {
-  if (this.mode === 'main') {
-    // Serie candele
-    const candles = {
-      name: 'Candles',
-      type: 'candlestick' as const,
-      data: this.candles.map((c, i) => ({
-        x: i,
-        y: [c.o, c.h, c.l, c.c]
-      }))
-    };
-
-    // SMA20
-    const sma20 = this.calcSMA(20).map((v, i) => ({
-      x: i + (this.candles.length - this.calcSMA(20).length),
-      y: v.y
-    }));
-    const sma20Line = { name: 'SMA20', type: 'line' as const, data: sma20 };
-
-    // EMA50
-    const ema50 = this.calcEMA(50).map((v, i) => ({
-      x: i + (this.candles.length - this.calcEMA(50).length),
-      y: v.y
-    }));
-    const ema50Line = { name: 'EMA50', type: 'line' as const, data: ema50 };
-
-    // Volumi dentro al main
-    const volumes = {
-      name: 'Volume',
-      type: 'bar' as const,
-      data: this.candles.map((c, i) => ({ x: i, y: c.v }))
-    };
-
-    this.series = [candles, sma20Line, ema50Line, volumes];
-    this.chartOptions = {
-      chart: { type: 'candlestick', height: 400, background: '#1e222d', foreColor: '#fff' },
-      xaxis: { type: 'category' },
-      yaxis: [{ tooltip: { enabled: true } }],
-      stroke: { width: [1, 2, 2, 0] },
-      plotOptions: { bar: { columnWidth: '60%' } }
-    };
-
-  } else if (this.mode === 'volume') {
-    const volumesOnly = {
-      name: 'Volume',
-      type: 'bar' as const,
-      data: this.candles.map((c, i) => ({ x: i, y: c.v }))
-    };
-    this.series = [volumesOnly];
-    this.chartOptions = {
-      chart: { type: 'bar', height: 120, background: '#1e222d', foreColor: '#fff' },
-      xaxis: { type: 'category', labels: { show: false } },
-      yaxis: {
-        labels: { show: false },
-        axisBorder: { show: false },
-        axisTicks: { show: false }
-      },
-      plotOptions: { bar: { columnWidth: '60%' } }
-    };
-
-  } else if (this.mode === 'rsi') {
-    const rsiData = this.calcRSI(14).map(v => ({ x: v.x, y: v.y }));
-    this.series = [{ name: 'RSI', type: 'line', data: rsiData }];
-    this.chartOptions = {
-      chart: { type: 'line', height: 150, background: '#1e222d', foreColor: '#fff' },
-      xaxis: { type: 'category' },
-      yaxis: { min: 0, max: 100, tickAmount: 5 }
-    };
-
-  } else if (this.mode === 'macd') {
-    const { macd, signal, hist } = this.calcMACD();
-    this.series = [
-      { name: 'MACD', type: 'line', data: macd },
-      { name: 'Signal', type: 'line', data: signal },
-      { name: 'Histogram', type: 'bar', data: hist }
-    ];
-    this.chartOptions = {
-      chart: { type: 'line', height: 200, background: '#1e222d', foreColor: '#fff' },
-      xaxis: { type: 'category' },
-      yaxis: { labels: { show: true } },
-      stroke: { width: [2, 2, 0] },
-      plotOptions: { bar: { columnWidth: '70%' } }
-    };
-  }
+  // Aggiorna il chart
+  this.chartOptions = {
+    ...this.chartOptions,
+    series: [{ name: 'candles', data: [...this.candles] }]
+  };
 }
-
-
-  // 📐 Calcolo SMA
-  private calcSMA(period: number): { x: Date; y: number }[] {
-    const out: { x: Date; y: number }[] = [];
-    if (this.candles.length < period) return out;
-
-    for (let i = period - 1; i < this.candles.length; i++) {
-      const slice = this.candles.slice(i - period + 1, i + 1);
-      const avg = slice.reduce((sum, c) => sum + c.c, 0) / period;
-      out.push({ x: new Date(this.candles[i].t * 1000), y: avg });
-    }
-    return out;
-  }
-
-  // 📐 Calcolo EMA
-  private calcEMA(period: number): { x: Date; y: number }[] {
-    const out: { x: Date; y: number }[] = [];
-    if (this.candles.length < period) return out;
-
-    let k = 2 / (period + 1);
-    let emaPrev = this.candles
-      .slice(0, period)
-      .reduce((sum, c) => sum + c.c, 0) / period;
-
-    out.push({ x: new Date(this.candles[period - 1].t * 1000), y: emaPrev });
-
-    for (let i = period; i < this.candles.length; i++) {
-      const price = this.candles[i].c;
-      emaPrev = price * k + emaPrev * (1 - k);
-      out.push({ x: new Date(this.candles[i].t * 1000), y: emaPrev });
-    }
-    return out;
-  }
-
-  // 📐 Calcolo RSI
-  private calcRSI(period: number = 14): { x: number; y: number }[] {
-    if (this.candles.length < period + 1) return [];
-
-    const out: { x: number; y: number }[] = [];
-    let gains = 0, losses = 0;
-
-    for (let i = 1; i <= period; i++) {
-      const diff = this.candles[i].c - this.candles[i - 1].c;
-      if (diff >= 0) gains += diff;
-      else losses -= diff;
-    }
-
-    let avgGain = gains / period;
-    let avgLoss = losses / period;
-    let rs = avgLoss === 0 ? 0 : avgGain / avgLoss;
-    let rsi = 100 - (100 / (1 + rs));
-    out.push({ x: period, y: rsi });
-
-    for (let i = period + 1; i < this.candles.length; i++) {
-      const diff = this.candles[i].c - this.candles[i - 1].c;
-      let gain = diff > 0 ? diff : 0;
-      let loss = diff < 0 ? -diff : 0;
-
-      avgGain = (avgGain * (period - 1) + gain) / period;
-      avgLoss = (avgLoss * (period - 1) + loss) / period;
-
-      rs = avgLoss === 0 ? 0 : avgGain / avgLoss;
-      rsi = 100 - (100 / (1 + rs));
-      out.push({ x: i, y: rsi });
-    }
-
-    return out;
-  }
-
-  // 📐 Calcolo MACD
-  private calcMACD(): {
-    macd: { x: number; y: number }[],
-    signal: { x: number; y: number }[],
-    hist: { x: number; y: number }[]
-  } {
-    if (this.candles.length < 26) return { macd: [], signal: [], hist: [] };
-
-    const ema = (period: number): number[] => {
-      const k = 2 / (period + 1);
-      const prices = this.candles.map(c => c.c);
-      let emaArr: number[] = [];
-      let sma = prices.slice(0, period).reduce((a, b) => a + b) / period;
-      emaArr[period - 1] = sma;
-      for (let i = period; i < prices.length; i++) {
-        emaArr[i] = prices[i] * k + emaArr[i - 1] * (1 - k);
-      }
-      return emaArr;
-    };
-
-    const ema12 = ema(12);
-    const ema26 = ema(26);
-    const macdLine: number[] = [];
-
-    for (let i = 0; i < this.candles.length; i++) {
-      if (ema12[i] && ema26[i]) macdLine[i] = ema12[i] - ema26[i];
-      else macdLine[i] = 0;
-    }
-
-    const k = 2 / (9 + 1);
-    const signalLine: number[] = [];
-    let smaMacd = macdLine.slice(0, 9).reduce((a, b) => a + b) / 9;
-    signalLine[8] = smaMacd;
-    for (let i = 9; i < macdLine.length; i++) {
-      signalLine[i] = macdLine[i] * k + signalLine[i - 1] * (1 - k);
-    }
-
-    const hist: number[] = macdLine.map((v, i) => v - (signalLine[i] || 0));
-
-    return {
-      macd: macdLine.map((y, i) => ({ x: i, y })),
-      signal: signalLine.map((y, i) => ({ x: i, y })),
-      hist: hist.map((y, i) => ({ x: i, y }))
-    };
-  }
 }

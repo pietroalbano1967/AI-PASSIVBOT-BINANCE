@@ -11,3 +11,41 @@
 :host ::ng-deep #volume .apexcharts-yaxis line {
   display: none !important;
 }
+:host {
+  display: block;
+}
+.loading {
+  text-align: center;
+  padding: 20px;
+  font-size: 16px;
+  color: #999;
+}
+.loading, .no-data, .error {
+  text-align: center;
+  padding: 40px;
+  font-size: 16px;
+  color: #999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+}
+
+.error {
+  color: #ef5350;
+}
+
+.retry-btn {
+  margin-top: 15px;
+  padding: 8px 16px;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  
+  &:hover {
+    background: #1565c0;
+  }
+}
