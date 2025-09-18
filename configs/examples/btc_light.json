@@ -1,0 +1,100 @@
+{
+  "backtest": {
+    "base_dir": "backtests",
+    "combine_ohlcvs": true,
+    "compress_cache": true,
+    "end_date": "2024-02-01",
+    "exchanges": ["binance"],
+    "gap_tolerance_ohlcvs_minutes": 120,
+    "start_date": "2024-01-01",
+    "starting_balance": 10000,
+    "use_btc_collateral": true
+  },
+
+  "bot": {
+    "long": {
+      "close_grid_markup_end": 0.003,
+      "close_grid_markup_start": 0.006,
+      "close_grid_qty_pct": 0.9,
+      "ema_span_0": 400,
+      "ema_span_1": 600,
+      "enforce_exposure_limit": true,
+      "entry_grid_double_down_factor": 1.0,
+      "entry_grid_spacing_pct": 0.02,
+      "entry_grid_spacing_weight": 0.5,
+      "entry_initial_qty_pct": 0.01,
+      "n_positions": 2,
+      "total_wallet_exposure_limit": 1,
+      "unstuck_close_pct": 0.02,
+      "unstuck_ema_dist": 0.005,
+      "unstuck_loss_allowance_pct": 0.01,
+      "unstuck_threshold": 0.7
+    },
+    "short": {
+      "n_positions": 0,
+      "total_wallet_exposure_limit": 0,
+      "close_grid_markup_end": 0.002,
+      "close_grid_markup_start": 0.002,
+      "close_grid_qty_pct": 0.05,
+      "ema_span_0": 400,
+      "ema_span_1": 600,
+      "enforce_exposure_limit": true,
+      "entry_grid_double_down_factor": 1.0,
+      "entry_grid_spacing_pct": 0.02,
+      "entry_grid_spacing_weight": 0.5,
+      "entry_initial_qty_pct": 0.01,
+      "unstuck_close_pct": 0.02,
+      "unstuck_ema_dist": 0.005,
+      "unstuck_loss_allowance_pct": 0.01,
+      "unstuck_threshold": 0.7
+    }
+  },
+
+  "coin_overrides": {},
+
+  "live": {
+    "approved_coins": { "long": ["BTC"], "short": [] },
+    "auto_gs": true,
+    "empty_means_all_approved": true,
+    "execution_delay_seconds": 2,
+    "filter_by_min_effective_cost": true,
+    "ignored_coins": { "long": [], "short": [] },
+    "leverage": 5,
+    "market_orders_allowed": false,
+    "max_n_cancellations_per_batch": 5,
+    "max_n_creations_per_batch": 3,
+    "max_n_restarts_per_day": 5,
+    "minimum_coin_age_days": 30,
+    "ohlcvs_1m_rolling_window_days": 1,
+    "ohlcvs_1m_update_after_minutes": 10,
+    "pnls_max_lookback_days": 10,
+    "price_distance_threshold": 0.002,
+    "time_in_force": "good_till_cancelled",
+    "user": "bybit_01"
+  },
+
+  "optimize": {
+    "bounds": {
+      "long_close_grid_markup_end": [0.001, 0.01],
+      "long_close_grid_markup_start": [0.001, 0.01],
+      "long_close_grid_qty_pct": [0.05, 1],
+      "long_ema_span_0": [100, 600],
+      "long_ema_span_1": [200, 800],
+      "long_entry_grid_spacing_pct": [0.001, 0.05],
+      "long_entry_initial_qty_pct": [0.004, 0.02],
+      "long_n_positions": [1, 3],
+      "long_total_wallet_exposure_limit": [0.5, 1],
+      "long_unstuck_close_pct": [0.001, 0.05],
+      "long_unstuck_threshold": [0.4, 0.95]
+    },
+    "compress_results_file": true,
+    "iters": 200,
+    "mutation_probability": 0.3,
+    "crossover_probability": 0.6,
+    "population_size": 20,
+    "n_cpus": 4,
+    "round_to_n_significant_digits": 4,
+    "scoring": ["btc_adg_w", "btc_mdg_w"],
+    "write_all_results": false
+  }
+}

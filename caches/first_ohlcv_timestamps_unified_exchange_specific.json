@@ -1,0 +1,37 @@
+{
+    "ADA": {
+        "binanceusdm": 1580428800000,
+        "bitget": 0.0,
+        "bybit": 1616025600000,
+        "hyperliquid": 1609977599999,
+        "okx": 1583020800000
+    },
+    "BTC": {
+        "binanceusdm": 1567900800000,
+        "bitget": 0.0,
+        "bybit": 1585094400000,
+        "hyperliquid": 1609977600000,
+        "okx": 1577836800000
+    },
+    "ETH": {
+        "binanceusdm": 1574812800000,
+        "bitget": 0.0,
+        "bybit": 1615766400000,
+        "hyperliquid": 1609977599999,
+        "okx": 1577836800000
+    },
+    "SOL": {
+        "binanceusdm": 1600041600000,
+        "bitget": 0.0,
+        "bybit": 1634256000000,
+        "hyperliquid": 1609977599999,
+        "okx": 1609459200000
+    },
+    "XRP": {
+        "binanceusdm": 1578268800000,
+        "bitget": 0.0,
+        "bybit": 1620864000000,
+        "hyperliquid": 1609977599999,
+        "okx": 1577836800000
+    }
+}

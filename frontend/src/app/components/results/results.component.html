@@ -1,0 +1,14 @@
+<h2>📂 Risultati</h2>
+<button (click)="load()">🔄 Aggiorna</button>
+
+@if (results.length > 0) {
+  <ul>
+    @for (r of results; track r) {
+      <li>
+        <a [href]="getDownloadUrl(r)" target="_blank">{{ r }}</a>
+      </li>
+    }
+  </ul>
+} @else {
+  <p>❌ Nessun risultato trovato.</p>
+}

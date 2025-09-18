@@ -1,0 +1,156 @@
+<div class="dashboard-container">
+  <div class="row">
+    <!-- COLONNA SINISTRA (grande) -->
+    <div class="col-left">
+      <!-- Candlestick Chart -->
+      <div class="card big-card">
+        <h2>📊 {{ currentSymbol }} Price Chart</h2>
+        <apx-chart
+          #chart
+          [series]="chartOptions.series!"
+          [chart]="chartOptions.chart!"
+          [xaxis]="chartOptions.xaxis!"
+          [plotOptions]="chartOptions.plotOptions!"
+          [annotations]="chartOptions.annotations!"
+          [stroke]="chartOptions.stroke!"
+          [title]="chartOptions.title!">
+        </apx-chart>
+      </div>
+
+      <!-- Ordini -->
+      <div class="card">
+        <h2>📑 Ordini simulati</h2>
+        <div class="table-container">
+          <table class="styled-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Time</th>
+                <th>Symbol</th>
+                <th>Price</th>
+                <th>Signal</th>
+                <th>Conf.</th>
+                <th>Side</th>
+              </tr>
+            </thead>
+            <tbody>
+             <tr *ngFor="let o of paginatedOrders; trackBy: trackByOrder"
+                [ngClass]="{ 'order-buy': o.side === 'BUY', 'order-sell': o.side === 'SELL' }">
+              <td>{{ o.id }}</td>
+              <td>{{ o.t * 1000 | date:'short' }}</td>
+              <td>{{ o.symbol }}</td>
+              <td>{{ o.price | number:'1.2-2' }}</td>
+              <td>{{ o.signal }}</td>
+              <td>{{ o.confidence | percent:'1.0-1' }}</td>
+              <td>{{ o.side }}</td>
+            </tr>
+            </tbody>
+          </table>
+          
+          <!-- Paginazione -->
+          <div class="pagination-controls" *ngIf="state.orders.length > 0">
+            <button 
+              (click)="changePage(currentPage - 1)" 
+              [disabled]="currentPage === 1"
+              class="pagination-btn">
+              ← Prev
+            </button>
+            
+            <span class="page-info">
+              Pagina {{ currentPage }} di {{ totalPages }}
+            </span>
+            
+            <button 
+              (click)="changePage(currentPage + 1)" 
+              [disabled]="currentPage === totalPages"
+              class="pagination-btn">
+              Next →
+            </button>
+          </div>
+          
+          <div *ngIf="state.orders.length === 0" class="no-orders">
+            Nessun ordine trovato
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLONNA DESTRA (stretta) -->
+    <div class="col-right">
+      <!-- MiniTicker -->
+      <div class="card small-card">
+        <h2>💹 MiniTicker</h2>
+        <div class="tickers-grid">
+        <div *ngFor="let t of state.tickers; trackBy: trackByTicker"
+     class="ticker-card"
+     (click)="navigateToTickerDetail(t)">
+  <div class="ticker-header">
+    <span class="symbol">{{ t.s }}</span>
+    <span class="change" [ngClass]="getChangeClass(t)">
+      {{ getChangePercent(t) | number:'1.2-2' }}%
+    </span>
+  </div>
+  <div class="ticker-body">
+    <div class="price">{{ t.c | number:'1.2-2' }}</div>
+    <div class="volume">Vol: {{ t.v | number:'1.0-0' }}</div>
+  </div>
+</div>
+        </div>
+      </div>
+
+      <!-- RSI -->
+      <div class="card">
+        <h2>📈 RSI ({{ currentSymbol }})</h2>
+        <apx-chart
+          [series]="rsiChartOptions.series!"
+          [chart]="rsiChartOptions.chart!"
+          [xaxis]="rsiChartOptions.xaxis!"
+          [yaxis]="rsiChartOptions.yaxis!"
+          [annotations]="rsiChartOptions.annotations!"
+          [stroke]="rsiChartOptions.stroke!"
+          [colors]="rsiChartOptions.colors!">
+        </apx-chart>
+      </div>
+
+      <!-- Segnali AI -->
+      <div class="card signals-card">
+        <h2>🤖 Segnali AI</h2>
+        <div class="table-container limited-rows">
+          <table class="styled-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Close</th>
+                <th>Signal</th>
+                <th>Conf.</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let s of state.signals.slice(0,10); let i = index"
+                  [ngClass]="{
+                    'latest-buy': i === 0 && s.signal.includes('BUY'),
+                    'latest-sell': i === 0 && s.signal.includes('SELL'),
+                    'latest-hold': i === 0 && s.signal.includes('HOLD')
+                  }">
+                <td>{{ s.t ? (s.t * 1000 | date:'shortTime') : '-' }}</td>
+                <td>{{ s.close | number:'1.2-2' }}</td>
+                <td>{{ s.signal }}</td>
+                <td>{{ s.confidence | percent:'1.0-1' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Aggiungi pulsante per reset (debug) -->
+  <div class="debug-controls">
+    <button (click)="forceDisconnect()" class="reset-btn">
+      🔄 Reset Completo
+    </button>
+    <span class="connection-status">
+      Stato: {{ wsCandle?.readyState === 1 ? 'Connesso' : 'Disconnesso' }}
+    </span>
+  </div>
+</div>

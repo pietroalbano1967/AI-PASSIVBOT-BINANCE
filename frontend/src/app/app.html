@@ -1,0 +1,12 @@
+<header class="app-header">
+  <nav class="navbar">
+    <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">🏠 Dashboard</a>
+    <a routerLink="/backtest" routerLinkActive="active">📈 Backtest</a>
+    <a routerLink="/optimize" routerLinkActive="active">⚙️ Optimize</a>
+    <a routerLink="/results" routerLinkActive="active">📂 Results</a>
+  </nav>
+</header>
+
+<main class="app-content">
+  <router-outlet></router-outlet>
+</main>

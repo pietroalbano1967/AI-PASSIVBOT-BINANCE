@@ -1,0 +1,45 @@
+<div class="ticker-detail-container">
+  <div class="header">
+    <button class="back-btn" (click)="goBack()">← Indietro</button>
+    <h1>Dettaglio {{ symbol }}</h1>
+  </div>
+
+  <div class="content">
+    <div class="card info-card">
+      <h2>Informazioni Ticker</h2>
+      <div class="info-grid" *ngIf="tickerData">
+        <div class="info-item">
+          <span class="label">Simbolo:</span>
+          <span class="value">{{ tickerData.symbol }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Prezzo:</span>
+          <span class="value">{{ tickerData.price | number:'1.2-2' }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Volume (24h):</span>
+          <span class="value">{{ tickerData.volume | number:'1.0-0' }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Massimo (24h):</span>
+          <span class="value">{{ tickerData.high | number:'1.2-2' }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Minimo (24h):</span>
+          <span class="value">{{ tickerData.low | number:'1.2-2' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card chart-card">
+      <h2>Andamento Prezzo (30 giorni)</h2>
+      <apx-chart
+        [series]="chartOptions.series!"
+        [chart]="chartOptions.chart!"
+        [xaxis]="chartOptions.xaxis!"
+        [yaxis]="chartOptions.yaxis!"
+        [title]="chartOptions.title!">
+      </apx-chart>
+    </div>
+  </div>
+</div>

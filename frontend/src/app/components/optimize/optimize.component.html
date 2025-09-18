@@ -1,0 +1,8 @@
+<h2>⚡ Avvia Ottimizzazione</h2>
+<label>Nome file config (.hjson):</label>
+<input [(ngModel)]="configName" placeholder="es. multiasset_light" />
+<button (click)="submit()">Esegui</button>
+
+@if (output) {
+  <pre>{{ output }}</pre>
+}

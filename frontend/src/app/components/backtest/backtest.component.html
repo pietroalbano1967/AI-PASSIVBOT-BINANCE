@@ -1,0 +1,8 @@
+<h2>📈 Avvia Backtest</h2>
+<label>Nome file config (.hjson):</label>
+<input [(ngModel)]="configName" placeholder="es. example_long" />
+<button (click)="submit()">Esegui</button>
+
+@if (output) {
+  <pre>{{ output }}</pre>
+}

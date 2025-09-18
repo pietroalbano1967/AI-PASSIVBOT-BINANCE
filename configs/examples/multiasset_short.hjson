@@ -1,0 +1,62 @@
+{
+  "exchanges": {
+    "binanceusdm": {
+      "enabled": true,
+      "fee": 0.0004,
+      "leverage": 3,
+      "collateral": "USDT",
+      "max_leverage": 20,
+      "min_size": 0.001,
+      "size_step": 0.001
+    },
+    "bybit": {
+      "enabled": true,
+      "fee": 0.0004,
+      "leverage": 3,
+      "collateral": "USDT",
+      "max_leverage": 20,
+      "min_size": 0.001,
+      "size_step": 0.001
+    }
+  },
+  "symbols": {
+    "BTC/USDT": {"enabled": true},
+    "ETH/USDT": {"enabled": true},
+    "BNB/USDT": {"enabled": true},
+    "SOL/USDT": {"enabled": true},
+    "XRP/USDT": {"enabled": true},
+    "DOGE/USDT": {"enabled": true}
+  },
+  "starting_balance": 1000,
+  "backtesting": {
+    "enabled": true,
+    "period": "1h",
+    "start_date": "2021-01-01",
+    "end_date": "2025-01-01"
+  },
+  "bot": {
+    "strategy": "grid",
+    "long": {
+      "enabled": true,
+      "total_wallet_exposure_limit": 0.5,
+      "n_positions": 5,
+      "entry_grid_spacing_pct": 0.02,
+      "entry_initial_qty_pct": 0.1,
+      "entry_grid_double_down_factor": 2.0,
+      "close_grid_markup_start": 0.01,
+      "close_grid_markup_end": 0.005,
+      "close_grid_qty_pct": 1.0
+    },
+    "short": {
+      "enabled": true,
+      "total_wallet_exposure_limit": 0.5,
+      "n_positions": 5,
+      "entry_grid_spacing_pct": 0.02,
+      "entry_initial_qty_pct": 0.1,
+      "entry_grid_double_down_factor": 2.0,
+      "close_grid_markup_start": -0.005,
+      "close_grid_markup_end": -0.01,
+      "close_grid_qty_pct": 1.0
+    }
+  }
+}

@@ -1,0 +1,71 @@
+<div class="orders-container">
+  <div class="orders-header">
+    <h1>📑 Tutti gli Ordini Simulati</h1>
+    <a routerLink="/dashboard" class="back-link">← Torna alla Dashboard</a>
+  </div>
+
+  <div class="card">
+    <div class="table-container">
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Time</th>
+<th>Symbol</th>
+            <th>Price</th>
+            <th>Signal</th>
+            <th>Conf.</th>
+            <th>Side</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let o of paginatedOrders" 
+              [ngClass]="{ 'order-buy': o.side === 'BUY', 'order-sell': o.side === 'SELL' }">
+            <td>{{ o.id }}</td>
+            <td>{{ o.t * 1000 | date:'medium' }}</td>
+            <td>{{ o.symbol }}</td>
+            <td>{{ o.price | number:'1.2-2' }}</td>
+            <td>{{ o.signal }}</td>
+            <td>{{ o.confidence | percent:'1.0-1' }}</td>
+            <td>{{ o.side }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Paginazione avanzata -->
+      <div class="pagination-controls" *ngIf="orders.length > 0">
+        <button (click)="changePage(1)" [disabled]="currentPage === 1" class="pagination-btn">
+          ⏮ Prima
+        </button>
+        <button (click)="changePage(currentPage - 1)" [disabled]="currentPage === 1" class="pagination-btn">
+          ← Prev
+        </button>
+
+        <span class="page-numbers">
+          <button *ngFor="let page of pageNumbers" 
+                  (click)="changePage(page)"
+                  [class.active]="page === currentPage"
+                  class="page-btn">
+            {{ page }}
+          </button>
+        </span>
+
+        <button (click)="changePage(currentPage + 1)" [disabled]="currentPage === totalPages" class="pagination-btn">
+          Next →
+        </button>
+        <button (click)="changePage(totalPages)" [disabled]="currentPage === totalPages" class="pagination-btn">
+          Ultima ⏭
+        </button>
+      </div>
+
+      <div class="page-info">
+        Pagina {{ currentPage }} di {{ totalPages }} - 
+        {{ orders.length }} ordini totali
+      </div>
+
+      <div *ngIf="orders.length === 0" class="no-orders">
+        Nessun ordine trovato
+      </div>
+    </div>
+  </div>
+</div>

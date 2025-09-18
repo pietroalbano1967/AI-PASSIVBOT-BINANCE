@@ -1,0 +1,33 @@
+services:
+  passivbot:
+    profiles:
+      - default
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: passivbot:latest
+    container_name: passivbot
+    restart: unless-stopped
+    volumes:
+      - ./:/app/
+    working_dir: /app
+    # Default command runs src/main.py; override as needed
+    #command: python src/main.py configs/template.json
+    #command: python src/backtest.py configs/examples/top20mcap.json
+    #command: python src/optimize.py configs/template.json
+    
+  passivbot-live:
+    profiles:
+     - live
+    build:
+      context: .
+      dockerfile: Dockerfile_live
+    image: passivbot-live:latest
+    container_name: passivbot-live
+    restart: unless-stopped
+    volumes:
+      - ./configs/:/app/configs/
+      - ./api-keys.json:/app/api-keys.json
+    working_dir: /app
+    # command: python src/main.py configs/template.json
+    

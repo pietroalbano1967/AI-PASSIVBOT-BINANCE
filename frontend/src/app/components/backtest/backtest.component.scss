@@ -1,0 +1,39 @@
+h2 {
+  margin-bottom: 1rem;
+  color: #2a2a2a;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+input {
+  margin-right: 0.5rem;
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: #1976d2;
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+
+  &:hover {
+    background: #125a9c;
+  }
+}
+
+pre {
+  margin-top: 1rem;
+  padding: 10px;
+  background: #f4f4f4;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}

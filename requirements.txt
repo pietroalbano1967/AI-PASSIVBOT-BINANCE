@@ -1,0 +1,32 @@
+# Trading & Exchange
+ccxt==4.2.67
+python-binance==1.0.19
+
+# Data Science
+numpy==1.26.4
+pandas==2.2.3
+scipy==1.13.1
+numba==0.59.1
+pandas-ta==0.3.14b0
+xgboost==2.1.1
+# Visualizzazione
+pyqtgraph==0.13.3
+PyQt5==5.15.10
+matplotlib==3.9.2
+plotly==6.0.1
+
+# Utilità
+tqdm==4.66.4
+aiohttp==3.9.5
+websockets==12.0
+requests==2.32.3
+PyYAML==6.0.2
+psutil==5.9.8
+python-dotenv==1.0.0
+
+# API Server
+fastapi==0.115.0
+uvicorn==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.4.0
+starlette==0.38.2

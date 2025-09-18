@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+
+# Config & secrets
+.env
+
+# Cache / build
+*.log
+*.sqlite3

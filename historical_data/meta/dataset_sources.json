@@ -1,0 +1,38 @@
+{
+  "BTC": {
+    "Binance": "Kaggle - imranbukhari/comprehensive-btcusd-1h-data",
+    "Coinbase": "Kaggle - another_dataset",
+    "Bybit": "Passivbot downloader",
+    "BTCUSD_1h_Binance.csv": "local_csv",
+    "BTCUSD_1h_BinanceFutures.csv": "local_csv",
+    "BTCUSD_1h_Bitfinex.csv": "local_csv",
+    "BTCUSD_1h_BitMEX.csv": "local_csv",
+    "BTCUSD_1h_Bitstamp.csv": "local_csv",
+    "BTCUSD_1h_Coinbase.csv": "local_csv",
+    "BTCUSD_1h_Combined_Index.csv": "local_csv",
+    "BTCUSD_1h_KuCoin.csv": "local_csv",
+    "BTCUSD_1h_OKX.csv": "local_csv"
+  },
+  "ETH": {
+    "Binance": "Kaggle - ethusd-1h",
+    "Bybit": "Downloaded via CCXT",
+    "ETHUSD_1h_Binance.csv": "local_csv",
+    "ETHUSD_1h_Bitfinex.csv": "local_csv",
+    "ETHUSD_1h_BitMEX.csv": "local_csv",
+    "ETHUSD_1h_Bitstamp.csv": "local_csv",
+    "ETHUSD_1h_Coinbase.csv": "local_csv",
+    "ETHUSD_1h_Combined_Index.csv": "local_csv",
+    "ETHUSD_1h_KuCoin.csv": "local_csv",
+    "ETHUSD_1h_OKX.csv": "local_csv"
+  },
+  "BNB": {
+    "BNBUSD_1h_Binance.csv": "local_csv",
+    "BNBUSD_1h_BitMEX.csv": "local_csv",
+    "BNBUSD_1h_Combined_Index.csv": "local_csv",
+    "BNBUSD_1h_KuCoin.csv": "local_csv",
+    "BNBUSD_1h_OKX.csv": "local_csv"
+  },
+  "SOL": {
+    "SOLUSDT_1h.csv": "local_csv"
+  }
+}
