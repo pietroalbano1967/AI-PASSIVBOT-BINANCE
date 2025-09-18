@@ -77,10 +77,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const currentState = this.stateService.getCurrentState();
     this.currentSymbol = currentState.currentSymbol || 'BTCUSDT';
 
-    if (currentState.candles.length > 0) {
-      console.log('🔄 Ripristino stato dashboard esistente');
-      this.updateChart();
-      this.updateRsiChart();
+     // Se non ci sono ticker, aggiungi il ticker predefinito
+  if (currentState.tickers.length === 0) {
+    const defaultTicker = {
+      s: this.currentSymbol,
+      c: 0,
+      v: 0,
+      h: 0,
+      l: 0,
+      o: 0
+    };
+    this.stateService.updateState({ tickers: [defaultTicker] });
+  
 
       if (this.mode === 'ws') {
         this.connectWebSockets();
@@ -306,7 +314,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
 }
 
 
-  connectTickers() {
+  // dashboard.component.ts - MODIFICA la funzione connectTickers()
+// dashboard.component.ts - modifica la funzione connectTickers
+connectTickers() {
   if (this.wsTickers) this.wsTickers.close();
 
   this.wsTickers = new WebSocket(`ws://localhost:8000/ws/tickers`);
@@ -315,28 +325,32 @@ export class DashboardComponent implements OnInit, OnDestroy {
     console.log("✅ WS tickers connesso");
   };
 
-  // Modifica la funzione connectTickers()
-this.wsTickers.onmessage = (event) => {
-  try {
-    const data = JSON.parse(event.data);
-    
-    // ✅ Correggi la struttura dati
-    const ticker = {
-      s: data.symbol || data.s,
-      c: data.price || data.c,
-      v: data.volume || data.v,
-      h: data.high || data.h,
-      l: data.low || data.l,
-      o: data.openPrice || data.o || (data.price || data.c) // fallback
-    };
+  this.wsTickers.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      
+      // Formatta il ticker in modo uniforme
+      const ticker = {
+        s: data.s || data.symbol,
+        c: data.c || data.price,
+        v: data.v || data.volume,
+        h: data.h || data.high,
+        l: data.l || data.low,
+        o: data.o || data.openPrice || (data.c || data.price) // fallback
+      };
 
-    const state = this.stateService.getCurrentState();
-    const newTickers = [ticker, ...state.tickers].slice(0, 50);
-    this.stateService.updateState({ tickers: newTickers });
-  } catch (e) {
-    console.error("❌ Errore parsing ticker:", e, event.data);
-  }
-};
+      const state = this.stateService.getCurrentState();
+      
+      // Evita duplicati: rimuovi il ticker con lo stesso simbolo se esiste
+      const newTickers = state.tickers.filter(t => t.s !== ticker.s);
+      newTickers.unshift(ticker); // aggiungi in testa
+      
+      // Limita a 50 ticker
+      this.stateService.updateState({ tickers: newTickers.slice(0, 50) });
+    } catch (e) {
+      console.error("❌ Errore parsing ticker:", e, event.data);
+    }
+  };
 
   this.wsTickers.onerror = (err) => {
     console.error("❌ Errore WS tickers:", err);
@@ -348,7 +362,38 @@ this.wsTickers.onmessage = (event) => {
   };
 }
 
-
+private ensureDefaultSymbol() {
+  const state = this.stateService.getCurrentState();
+  
+  // Se non ci sono ticker, aggiungi quello predefinito
+  if (state.tickers.length === 0) {
+    const defaultTicker = {
+      s: this.currentSymbol,
+      c: 0,
+      v: 0,
+      h: 0,
+      l: 0,
+      o: 0
+    };
+    this.stateService.updateState({ tickers: [defaultTicker] });
+  }
+  
+  // Assicurati che il simbolo corrente sia nei ticker
+  const currentTicker = state.tickers.find(t => t.s === this.currentSymbol);
+  if (!currentTicker) {
+    const newTicker = {
+      s: this.currentSymbol,
+      c: 0,
+      v: 0,
+      h: 0,
+      l: 0,
+      o: 0
+    };
+    this.stateService.updateState({ 
+      tickers: [newTicker, ...state.tickers].slice(0, 50) 
+    });
+  }
+}
   connectSignals(symbol: string) {
   if (this.wsSignals) this.wsSignals.close();
 
@@ -440,27 +485,61 @@ this.wsTickers.onmessage = (event) => {
   }
 
   loadRest() {
-    this.api.getCandles(this.currentSymbol, '1m', 50).subscribe({
-      next: (data: CandleResponse[]) => {
-        const candles: CandleData[] = data.map(c => ({ x: new Date(c.t * 1000), y: [c.o, c.h, c.l, c.c] }));
-        this.stateService.updateState({ candles });
-        this.calculateMA20(candles);
-      },
-      error: (err) => console.error('❌ Errore caricamento candele REST:', err)
-    });
+  this.api.getCandles(this.currentSymbol, '1m', 50).subscribe({
+    next: (data: CandleResponse[]) => {
+      const candles: CandleData[] = data.map(c => ({ x: new Date(c.t * 1000), y: [c.o, c.h, c.l, c.c] }));
+      this.stateService.updateState({ candles });
+      this.calculateMA20(candles);
+    },
+    error: (err) => console.error('❌ Errore caricamento candele REST:', err)
+  });
 
-    this.api.getTicker(this.currentSymbol).subscribe({
-      next: (data: TickerResponse) => this.stateService.updateState({ tickers: [data] }),
-      error: (err) => console.error('❌ Errore caricamento ticker REST:', err)
-    });
-  }
+  this.api.getTicker(this.currentSymbol).subscribe({
+    next: (data: TickerResponse) => {
+      const ticker = {
+        s: data.symbol,
+        c: data.price,
+        v: data.volume,
+        h: data.high,
+        l: data.low,
+        o: data.price // Usa il prezzo come open se non disponibile
+      };
+      
+      const state = this.stateService.getCurrentState();
+      // Sostituisci il ticker corrente se esiste, altrimenti aggiungilo
+      const newTickers = state.tickers.filter(t => t.s !== ticker.s);
+      newTickers.unshift(ticker);
+      this.stateService.updateState({ tickers: newTickers.slice(0, 50) });
+    },
+    error: (err) => console.error('❌ Errore caricamento ticker REST:', err)
+  });
+}
+
 
   selectSymbol(symbol: string) {
-    this.currentSymbol = symbol;
-    this.stateService.updateState({ currentSymbol: symbol });
-    console.log(`🔁 Cambio simbolo: ${symbol}`);
-    this.toggleMode(this.mode);
+  this.currentSymbol = symbol;
+  this.stateService.updateState({ currentSymbol: symbol });
+  
+  // Aggiorna il ticker predefinito
+  const state = this.stateService.getCurrentState();
+  const existingTicker = state.tickers.find(t => t.s === symbol);
+  if (!existingTicker) {
+    const newTicker = {
+      s: symbol,
+      c: 0,
+      v: 0,
+      h: 0,
+      l: 0,
+      o: 0
+    };
+    this.stateService.updateState({ 
+      tickers: [newTicker, ...state.tickers].slice(0, 50) 
+    });
   }
+  
+  console.log(`🔁 Cambio simbolo: ${symbol}`);
+  this.toggleMode(this.mode);
+}
 
   disconnectWs() {
     if (this.wsCandle) { this.wsCandle.close(); this.wsCandle = undefined; }
@@ -482,13 +561,15 @@ this.wsTickers.onmessage = (event) => {
   }
 
   getChangePercent(t: any): number {
-    try {
-      const close = parseFloat(t.c || t.price || t.lastPrice);
-      const open = parseFloat(t.o || t.openPrice || close);
-      if (!open || isNaN(open)) return 0;
-      return ((close - open) / open) * 100;
-    } catch { return 0; }
+  try {
+    const close = parseFloat(t.c || t.price || t.lastPrice);
+    const open = parseFloat(t.o || t.openPrice || close);
+    if (!open || isNaN(open)) return 0;
+    return ((close - open) / open) * 100;
+  } catch { 
+    return 0; 
   }
+}
 
   getChangeClass(t: any): string {
     return this.getChangePercent(t) >= 0 ? 'positive' : 'negative';

@@ -51,19 +51,26 @@ export class TickerDetailComponent implements OnInit {
     this.loadHistoricalData();
   }
 
-  loadTickerDetails() {
-    if (this.symbol) {
-      this.api.getTicker(this.symbol).subscribe({
-        next: (data) => {
-          this.tickerData = data;
-          this.chartOptions.title = { text: `${this.symbol} Price Chart`, align: 'left' };
-        },
-        error: (err) => {
-          console.error('Errore nel caricamento dettagli ticker:', err);
-        }
-      });
-    }
+ loadTickerDetails() {
+  if (this.symbol) {
+    this.api.getTicker(this.symbol).subscribe({
+      next: (data) => {
+        // Formatta i dati in modo uniforme
+        this.tickerData = {
+          symbol: data.symbol,
+          price: data.price,
+          volume: data.volume,
+          high: data.high,
+          low: data.low
+        };
+        this.chartOptions.title = { text: `${this.symbol} Price Chart`, align: 'left' };
+      },
+      error: (err) => {
+        console.error('Errore nel caricamento dettagli ticker:', err);
+      }
+    });
   }
+}
 
   loadHistoricalData() {
     if (this.symbol) {
