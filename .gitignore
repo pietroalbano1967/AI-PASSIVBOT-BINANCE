@@ -1,23 +1,45 @@
-# Python
-__pycache__/
-*.pyc
+# --- Node/Angular standard ---
+/dist
+/tmp
+/out-tsc
+/bazel-out
+/node_modules
+npm-debug.log
+yarn-error.log
 
-# Virtual environment
-venv/
+# IDE
+.idea/
+.project
+.classpath
+.settings/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/*
 
-# Config & secrets
-.env
+# Angular cache e vari
+/.angular/cache
+.sass-cache/
+/connect.lock
+/coverage
+/libpeerconnection.log
+testem.log
 
-# Cache / build
-*.log
-*.sqlite3
-# Escludi file e cartelle pesanti
-api/*.pkl
-caches/**
-backtests/**/fills.csv
-
-# Ambiente virtuale e cache Python
+# --- Python specifico ---
 venv/
 __pycache__/
 *.pyc
 *.pyo
+*.log
+*.tmp
+
+# --- File pesanti e dataset ---
+api/*.pkl
+*.npy
+*.npy.gz
+caches/
+backtests/
+*/backtests/**/*.csv
+historical_data/
