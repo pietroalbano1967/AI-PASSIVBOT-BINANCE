@@ -17,10 +17,17 @@ export class OrdersComponent implements OnInit {
 
   constructor(private ordersService: OrdersService) {}
 
-  ngOnInit() {
-    this.loadOrders();
-    setInterval(() => this.loadOrders(), 5000);
-  }
+  private intervalId?: any;
+
+ngOnInit() {
+  this.loadOrders();
+  this.intervalId = setInterval(() => this.loadOrders(), 5000);
+}
+
+ngOnDestroy() {
+  if (this.intervalId) clearInterval(this.intervalId); // ✅ evita leak
+}
+
 
   loadOrders() {
     this.ordersService.getOrders().subscribe((res) => {
@@ -48,4 +55,18 @@ export class OrdersComponent implements OnInit {
   get pageNumbers(): number[] {
     return Array.from({ length: this.totalPages }, (_, i) => i + 1);
   }
+  saveOrders() {
+  this.ordersService.saveOrders().subscribe({
+    next: (res) => {
+      console.log("✅ Ordini salvati:", res);
+      this.orders = []; // ✅ svuota tabella
+      alert(`✅ ${res.saved} ordini salvati in ${res.file}`);
+    },
+    error: (err) => {
+      console.error("❌ Errore salvataggio ordini:", err);
+      alert("❌ Errore durante il salvataggio ordini");
+    }
+  });
+}
+
 }

@@ -80,8 +80,13 @@ export class ApiService {
 
     return this.http.get<CandleResponse[]>(`${this.baseUrl}/candles`, { params });
   }
-  getSavedCandles(symbol: string): Observable<any[]> {
-  return this.http.get<any[]>(`${this.baseUrl}/saved_candles/${symbol}`);
-}
 
+  getSavedCandles(symbol: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/saved_candles/${symbol}`);
+  }
+
+  // ✅ reload modello AI
+  reloadModel(): Observable<any> {
+    return this.http.post(`${this.baseUrl}/reload_model`, {});
+  }
 }

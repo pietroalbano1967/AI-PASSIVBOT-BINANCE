@@ -36,14 +36,20 @@ export class DashboardStateService {
     }
   }
 
-  updateState(partialState: Partial<DashboardState>) {
-    const currentState = this.stateSubject.value;
-    const newState = { ...currentState, ...partialState };
-    this.stateSubject.next(newState);
-    
-    // Salva nello storage per persistenza
+  private saveTimer?: any;
+
+updateState(partialState: Partial<DashboardState>) {
+  const currentState = this.stateSubject.value;
+  const newState = { ...currentState, ...partialState };
+  this.stateSubject.next(newState);
+
+  // ✅ debounce: salva max ogni 5s
+  if (this.saveTimer) clearTimeout(this.saveTimer);
+  this.saveTimer = setTimeout(() => {
     localStorage.setItem('dashboardState', JSON.stringify(newState));
-  }
+  }, 5000);
+}
+
 
   getCurrentState(): DashboardState {
     return this.stateSubject.value;

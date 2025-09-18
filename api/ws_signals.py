@@ -54,7 +54,7 @@ def load_candles(symbol: str):
 def register_ws_signals(app):
     @app.websocket("/ws/signals")
     async def ws_signals(websocket: WebSocket, symbol: str = Query("BTCUSDT")):
-        global order_id   # ✅ dichiarato qui
+        global order_id
 
         await websocket.accept()
         client = await AsyncClient.create()
@@ -75,7 +75,6 @@ def register_ws_signals(app):
                     volumes.append(float(k["v"]))
                     closes, highs, lows, volumes = closes[-300:], highs[-300:], lows[-300:], volumes[-300:]
 
-                    # ✅ invia dati solo quando abbiamo almeno 20 candele
                     if len(closes) < 20:
                         continue
 
@@ -87,7 +86,7 @@ def register_ws_signals(app):
                         "volume": volumes
                     })
 
-                    # prepara candele raw (ultime 300)
+                    # ✅ prepara solo ultime 300 candele lato server
                     candles_data = [
                         {"t": int(time.time()), "o": float(o), "h": float(h),
                          "l": float(l), "c": float(c), "v": float(v)}
@@ -112,7 +111,6 @@ def register_ws_signals(app):
                         continue
 
                     try:
-                        # 🔮 predizione AI
                         proba = model.predict_proba(X)[0]
                         pred = int(np.argmax(proba))
 
@@ -124,7 +122,7 @@ def register_ws_signals(app):
 
                         probs_dict = {labels[i]: round(float(p), 3) for i, p in enumerate(proba)}
 
-                        # 💾 simulazione ordini
+                        # 💾 simulazione ordini con limite memoria
                         action = None
                         if ("BUY" in signal or "SELL" in signal) and confidence > 0.55:
                             order_id += 1
@@ -139,12 +137,13 @@ def register_ws_signals(app):
                                 "side": action
                             }
                             orders.append(order)
+                            orders[:] = orders[-200:]  # ✅ max 200 ordini lato server
                             save_orders()
                             print(f"💾 Ordine simulato: {order}")
 
                         last_row = df.iloc[-1]
 
-                        # ✅ invio solo se abbiamo tutto definito
+                        # ✅ invia solo l’ultimo segnale, non tutta la lista
                         try:
                             await websocket.send_json({
                                 "symbol": symbol.upper(),
@@ -170,6 +169,7 @@ def register_ws_signals(app):
             print(f"🔌 Client disconnesso da /ws/signals ({symbol.upper()})")
         finally:
             await client.close_connection()
+
 
     # carica ordini salvati al riavvio
     load_orders()

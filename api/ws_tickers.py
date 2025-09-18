@@ -8,9 +8,9 @@ def register_ws_tickers(app):
     async def ws_tickers(websocket: WebSocket):
         await websocket.accept()
         streams = [
-            "btcusdt@miniTicker","ethusdt@miniTicker","bnbusdt@miniTicker",
-            "solusdt@miniTicker","xrpusdt@miniTicker","adausdt@miniTicker",
-            "dogeusdt@miniTicker","avaxusdt@miniTicker","maticusdt@miniTicker",
+            "btcusdt@miniTicker", "ethusdt@miniTicker", "bnbusdt@miniTicker",
+            "solusdt@miniTicker", "xrpusdt@miniTicker", "adausdt@miniTicker",
+            "dogeusdt@miniTicker", "avaxusdt@miniTicker", "maticusdt@miniTicker",
             "ltcusdt@miniTicker"
         ]
 
@@ -24,11 +24,20 @@ def register_ws_tickers(app):
                     while True:
                         msg = await stream.recv()
                         data = msg.get("data")
-                        if data:
-                            await websocket.send_json(data)
+
+                        # ✅ Filtra i ticker vuoti o incompleti
+                        if data and data.get("s") and data.get("c"):
+                            ticker = {
+                                "symbol": data["s"],
+                                "price": float(data["c"]),
+                                "volume": float(data["v"]),
+                                "high": float(data["h"]),
+                                "low": float(data["l"]),
+                            }
+                            await websocket.send_json(ticker)
 
             except WebSocketDisconnect:
-                # client ha chiuso la connessione → esco
+                print("🔌 Client disconnesso da /ws/tickers")
                 break
             except Exception as e:
                 print(f"⚠️ Errore WS tickers: {e}, retry fra 5s")

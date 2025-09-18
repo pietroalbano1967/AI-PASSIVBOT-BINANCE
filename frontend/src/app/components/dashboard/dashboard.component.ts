@@ -11,6 +11,7 @@ import {
 import { ApiService, CandleResponse, TickerResponse } from '../../services/api.service';
 import { WsService } from '../../services/ws.service';
 import { DashboardStateService } from '../../services/dashboard-state.service';
+import { MatSnackBar } from '@angular/material/snack-bar';  
 
 interface CandleData {
   x: Date;
@@ -156,6 +157,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  reloadModel() {
+  this.api.reloadModel().subscribe({
+    next: (res) => {
+      console.log("✅ Modello ricaricato:", res);
+      alert("✅ Modello AI ricaricato con successo!");
+    },
+    error: (err) => {
+      console.error("❌ Errore ricarico modello:", err);
+      alert("❌ Errore durante il ricarico del modello");
+    }
+  });
+}
+
   updatePaginatedOrders() {
     const state = this.stateService.getCurrentState();
     const startIndex = (this.currentPage - 1) * this.itemsPerPage;
@@ -200,7 +214,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   connectCandles(symbol: string) {
   if (this.wsCandle) this.wsCandle.close();
 
-  this.wsCandle = new WebSocket(`ws://localhost:8000/ws/candles1s?symbol=${symbol.toLowerCase()}`);
+  this.wsCandle = new WebSocket(`ws://127.0.0.1:8000/ws/candles1s?symbol=${symbol.toLowerCase()}`);
 
   this.wsCandle.onopen = () => {
     console.log(`✅ WS candles connesso per ${symbol}`);
@@ -210,17 +224,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
   this.wsCandle.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
-      console.log("📥 Candela WS:", data);
-
-      // ✅ Verifica che i dati siano validi
-      if (data.o === undefined || data.h === undefined || data.l === undefined || data.c === undefined) {
-        console.warn("⚠️ Candela incompleta ricevuta:", data);
+      
+      // ✅ Verifica che i dati siano nel formato corretto
+      if (!data || typeof data !== 'object') {
+        console.warn("Dati candela non validi:", data);
         return;
       }
 
       const candle: CandleData = {
         x: new Date(data.t * 1000),
-        y: [data.o, data.h, data.l, data.c] as [number, number, number, number]
+        y: [
+          data.o || data.open || 0,
+          data.h || data.high || 0,
+          data.l || data.low || 0,
+          data.c || data.close || 0
+        ] as [number, number, number, number]
       };
 
       const state = this.stateService.getCurrentState();
@@ -231,15 +249,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
         newCandles[existingIndex] = candle;
       } else {
         newCandles.push(candle);
-        if (newCandles.length > 100) {
-          newCandles.shift(); // ✅ tieni ultime 100 candele
-        }
       }
+
+      // ✅ tieni solo le ultime 100 candele
+      newCandles = newCandles.slice(-100);
 
       this.stateService.updateState({ candles: newCandles });
       this.calculateMA20(newCandles);
-
-      // ✅ Forza aggiornamento grafico
       this.updateChart();
 
     } catch (e) {
@@ -259,84 +275,142 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
 
   private calculateMA20(candles: CandleData[]) {
-    const ma20Data: MaData[] = [];
-    if (candles.length >= 20) {
-      for (let i = 19; i < candles.length; i++) {
-        let sum = 0;
-        for (let j = i - 19; j <= i; j++) sum += candles[j].y[3];
-        ma20Data.push({ x: candles[i].x, y: sum / 20 });
+  const ma20Data: MaData[] = [];
+
+  if (candles.length >= 20) {
+    for (let i = 19; i < candles.length; i++) {
+      let sum = 0;
+      for (let j = i - 19; j <= i; j++) {
+        sum += candles[j].y[3]; // usa il close
       }
+      ma20Data.push({ x: candles[i].x, y: sum / 20 });
     }
-    this.stateService.updateState({ ma20Data });
   }
+
+  // ✅ mantieni massimo 100 punti MA20
+  this.stateService.updateState({ ma20Data: ma20Data.slice(-100) });
+}
+
 
   private updateChart() {
-    const state = this.stateService.getCurrentState();
-    if (this.chart && this.chartOptions.series) {
-      this.stateService.state$.subscribe(() => {
-  this.updateChart();
-  this.updateRsiChart();
-});
-    }
+  const state = this.stateService.getCurrentState();
+  if (this.chart && this.chartOptions.series) {
+    this.chart.updateOptions({
+      series: [
+        { name: 'Candles', type: 'candlestick', data: state.candles.slice(-100) }, // ✅ max 100
+        { name: 'MA20', type: 'line', data: state.ma20Data.slice(-100) }
+      ],
+      annotations: this.chartOptions.annotations
+    }, false, true);
   }
+}
+
 
   connectTickers() {
-    if (this.wsTickers) this.wsTickers.close();
-    this.wsTickers = new WebSocket('ws://localhost:8000/ws/tickers');
-    this.wsTickers.onopen = () => this.reconnectAttempts = 0;
-    this.wsTickers.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        const state = this.stateService.getCurrentState();
-        const existingIndex = state.tickers.findIndex(t => t.s === data.s);
-        let newTickers = [...state.tickers];
-        if (existingIndex >= 0) newTickers[existingIndex] = data;
-        else newTickers.push(data);
-        this.stateService.updateState({ tickers: newTickers });
-      } catch (e) {
-        console.error('❌ Errore parsing ticker:', e, event.data);
-      }
+  if (this.wsTickers) this.wsTickers.close();
+
+  this.wsTickers = new WebSocket(`ws://localhost:8000/ws/tickers`);
+
+  this.wsTickers.onopen = () => {
+    console.log("✅ WS tickers connesso");
+  };
+
+  // Modifica la funzione connectTickers()
+this.wsTickers.onmessage = (event) => {
+  try {
+    const data = JSON.parse(event.data);
+    
+    // ✅ Correggi la struttura dati
+    const ticker = {
+      s: data.symbol || data.s,
+      c: data.price || data.c,
+      v: data.volume || data.v,
+      h: data.high || data.h,
+      l: data.low || data.l,
+      o: data.openPrice || data.o || (data.price || data.c) // fallback
     };
-    this.wsTickers.onerror = () => this.handleReconnection('tickers');
-    this.wsTickers.onclose = () => this.handleReconnection('tickers');
+
+    const state = this.stateService.getCurrentState();
+    const newTickers = [ticker, ...state.tickers].slice(0, 50);
+    this.stateService.updateState({ tickers: newTickers });
+  } catch (e) {
+    console.error("❌ Errore parsing ticker:", e, event.data);
   }
+};
+
+  this.wsTickers.onerror = (err) => {
+    console.error("❌ Errore WS tickers:", err);
+  };
+
+  this.wsTickers.onclose = () => {
+    console.warn("⚠️ WS tickers chiuso, tentativo di riconnessione...");
+    setTimeout(() => this.connectTickers(), 5000);
+  };
+}
+
 
   connectSignals(symbol: string) {
-    if (this.wsSignals) this.wsSignals.close();
-    this.wsSignals = new WebSocket(`ws://localhost:8000/ws/signals?symbol=${symbol}`);
-    this.wsSignals.onopen = () => this.reconnectAttempts = 0;
-    this.wsSignals.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log('📡 Segnale AI:', data);
-        const state = this.stateService.getCurrentState();
-        let newSignals = [data, ...state.signals].slice(0, 10);
+  if (this.wsSignals) this.wsSignals.close();
 
-        let newRsiData = [...state.rsiData];
-        if (data.rsi !== undefined) {
-          newRsiData.push({ x: new Date(data.t * 1000), y: data.rsi });
-          if (newRsiData.length > 50) newRsiData.shift();
-        }
+  this.wsSignals = new WebSocket(`ws://localhost:8000/ws/signals?symbol=${symbol}`);
+  this.wsSignals.onopen = () => this.reconnectAttempts = 0;
 
-        this.stateService.updateState({ signals: newSignals, rsiData: newRsiData });
+  this.wsSignals.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      console.log('📡 Segnale AI:', data);
 
-        if (data.confidence > 0.6 && (data.signal.includes('BUY') || data.signal.includes('SELL'))) {
-          this.addSignalMarker(new Date(data.t * 1000), data.close, data.signal);
-        }
-      } catch (e) {
-        console.error('❌ Errore parsing segnale:', e, event.data);
+      const state = this.stateService.getCurrentState();
+
+      // ✅ mantieni solo ultimi 50 segnali
+      const newSignals = [data, ...state.signals].slice(0, 50);
+
+      // ✅ mantieni solo ultimi 50 valori RSI
+      let newRsiData = [...state.rsiData];
+      if (data.rsi !== undefined) {
+        newRsiData.push({ x: new Date(data.t * 1000), y: data.rsi });
+        newRsiData = newRsiData.slice(-50);
       }
-    };
-    this.wsSignals.onerror = () => this.handleReconnection('signals');
-    this.wsSignals.onclose = () => this.handleReconnection('signals');
-  }
+
+      this.stateService.updateState({ signals: newSignals, rsiData: newRsiData });
+
+      // marker solo per segnali importanti
+      if (data.confidence > 0.6 && (data.signal.includes('BUY') || data.signal.includes('SELL'))) {
+        this.addSignalMarker(new Date(data.t * 1000), data.close, data.signal);
+      }
+    } catch (e) {
+      console.error('❌ Errore parsing segnale:', e, event.data);
+    }
+  };
+
+  this.wsSignals.onerror = () => this.handleReconnection('signals');
+  this.wsSignals.onclose = () => this.handleReconnection('signals');
+}
+
+
 
   private updateRsiChart() {
-    const state = this.stateService.getCurrentState();
-    if (this.rsiChartOptions.series) {
-      this.rsiChartOptions.series[0] = { name: 'RSI', type: 'line', data: state.rsiData };
+  const state = this.stateService.getCurrentState();
+
+  if (this.rsiChartOptions.series) {
+    // ✅ usa solo gli ultimi 50 valori RSI
+    const limitedRsiData = state.rsiData.slice(-50);
+
+    this.rsiChartOptions.series[0] = {
+      name: 'RSI',
+      type: 'line',
+      data: limitedRsiData
+    };
+
+    // ✅ aggiorna il grafico solo se presente
+    if (this.chart) {
+      this.chart.updateOptions({
+        series: this.rsiChartOptions.series
+      }, false, true);
     }
   }
+}
+
 
   private addSignalMarker(x: Date, y: number, signal: string) {
     const color = signal.includes('BUY') ? '#26a69a' : '#ef5350';

@@ -1,4 +1,8 @@
 <div class="dashboard-container">
+  <button (click)="reloadModel()" class="reload-btn">
+    ♻️ Ricarica Modello
+  </button>
+
   <div class="row">
     <!-- COLONNA SINISTRA (grande) -->
     <div class="col-left">
@@ -34,40 +38,32 @@
               </tr>
             </thead>
             <tbody>
-             <tr *ngFor="let o of paginatedOrders; trackBy: trackByOrder"
-                [ngClass]="{ 'order-buy': o.side === 'BUY', 'order-sell': o.side === 'SELL' }">
-              <td>{{ o.id }}</td>
-              <td>{{ o.t * 1000 | date:'short' }}</td>
-              <td>{{ o.symbol }}</td>
-              <td>{{ o.price | number:'1.2-2' }}</td>
-              <td>{{ o.signal }}</td>
-              <td>{{ o.confidence | percent:'1.0-1' }}</td>
-              <td>{{ o.side }}</td>
-            </tr>
+              <tr *ngFor="let o of paginatedOrders; trackBy: trackByOrder"
+                  [ngClass]="{ 'order-buy': o.side === 'BUY', 'order-sell': o.side === 'SELL' }">
+                <td>{{ o.id }}</td>
+                <td>{{ o.t * 1000 | date:'short' }}</td>
+                <td>{{ o.symbol }}</td>
+                <td>{{ o.price | number:'1.2-2' }}</td>
+                <td>{{ o.signal }}</td>
+                <td>{{ o.confidence | percent:'1.0-1' }}</td>
+                <td>{{ o.side }}</td>
+              </tr>
             </tbody>
           </table>
-          
+
           <!-- Paginazione -->
           <div class="pagination-controls" *ngIf="state.orders.length > 0">
-            <button 
-              (click)="changePage(currentPage - 1)" 
-              [disabled]="currentPage === 1"
-              class="pagination-btn">
-              ← Prev
-            </button>
-            
+            <button (click)="changePage(currentPage - 1)" 
+                    [disabled]="currentPage === 1"
+                    class="pagination-btn">← Prev</button>
             <span class="page-info">
               Pagina {{ currentPage }} di {{ totalPages }}
             </span>
-            
-            <button 
-              (click)="changePage(currentPage + 1)" 
-              [disabled]="currentPage === totalPages"
-              class="pagination-btn">
-              Next →
-            </button>
+            <button (click)="changePage(currentPage + 1)" 
+                    [disabled]="currentPage === totalPages"
+                    class="pagination-btn">Next →</button>
           </div>
-          
+
           <div *ngIf="state.orders.length === 0" class="no-orders">
             Nessun ordine trovato
           </div>
@@ -75,26 +71,28 @@
       </div>
     </div>
 
-    <!-- COLONNA DESTRA (stretta) -->
+    <!-- COLONNA DESTRA -->
     <div class="col-right">
       <!-- MiniTicker -->
       <div class="card small-card">
         <h2>💹 MiniTicker</h2>
         <div class="tickers-grid">
-        <div *ngFor="let t of state.tickers; trackBy: trackByTicker"
-     class="ticker-card"
-     (click)="navigateToTickerDetail(t)">
-  <div class="ticker-header">
-    <span class="symbol">{{ t.s }}</span>
-    <span class="change" [ngClass]="getChangeClass(t)">
-      {{ getChangePercent(t) | number:'1.2-2' }}%
-    </span>
-  </div>
-  <div class="ticker-body">
-    <div class="price">{{ t.c | number:'1.2-2' }}</div>
-    <div class="volume">Vol: {{ t.v | number:'1.0-0' }}</div>
-  </div>
-</div>
+          <ng-container *ngFor="let t of state.tickers; trackBy: trackByTicker">
+            <div class="ticker-card"
+                 (click)="navigateToTickerDetail(t)"
+                 *ngIf="t.s && t.c">
+              <div class="ticker-header">
+                <span class="symbol">{{ t.s }}</span>
+                <span class="change" [ngClass]="getChangeClass(t)">
+                  {{ getChangePercent(t) | number:'1.2-2' }}%
+                </span>
+              </div>
+              <div class="ticker-body">
+                <div class="price">{{ t.c | number:'1.2-2' }}</div>
+                <div class="volume">Vol: {{ t.v | number:'1.0-0' }}</div>
+              </div>
+            </div>
+          </ng-container>
         </div>
       </div>
 
@@ -144,7 +142,7 @@
     </div>
   </div>
 
-  <!-- Aggiungi pulsante per reset (debug) -->
+  <!-- Debug -->
   <div class="debug-controls">
     <button (click)="forceDisconnect()" class="reset-btn">
       🔄 Reset Completo

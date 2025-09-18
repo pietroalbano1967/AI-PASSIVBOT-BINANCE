@@ -8,11 +8,20 @@ from ta.trend import EMAIndicator, MACD
 BASE_DIR = os.path.dirname(__file__)
 MODEL_PATH = os.path.join(BASE_DIR, "model_pro_balanced.pkl")
 
-# Caricamento del modello
+def load_model():
+    """Carica il modello dal file .pkl"""
+    loaded = joblib.load(MODEL_PATH)
+    if isinstance(loaded, dict) and "model" in loaded:
+        return loaded["model"]
+    return loaded
 
-models = {
-    "BTCUSDT": joblib.load(MODEL_PATH)   # ✅ chiave uguale a quella usata nel frontend
-}
+# modello globale
+models = {"BTCUSDT": load_model()}
+
+def reload_models():
+    """Ricarica i modelli dal file .pkl"""
+    models["BTCUSDT"] = load_model()
+    return {"status": "ok", "message": "Modello ricaricato"}
 
 # Colonne delle feature usate dal modello
 FEATURE_COLUMNS = ["close", "rsi", "ema20", "ema50", "macd", "macd_signal", "macd_diff"]

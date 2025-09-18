@@ -21,4 +21,12 @@ export class OrdersService {
   getOrders(): Observable<{ orders: Order[] }> {
     return this.http.get<{ orders: Order[] }>(`${this.baseUrl}/simulated_orders`);
   }
+  saveOrders(): Observable<any> {
+  return this.http.post(`${this.baseUrl}/save_orders`, {});
 }
+// ✅ Aggiungi questo metodo se non esiste
+  getSimulatedOrders(): Observable<Order[]> {
+    return this.http.get<Order[]>(`${this.baseUrl}/simulated_orders`);
+  }
+}
+

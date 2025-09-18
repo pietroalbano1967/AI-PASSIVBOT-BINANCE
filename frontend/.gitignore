@@ -42,3 +42,8 @@ testem.log
 Thumbs.db
 /config/exmples
 /historical_data
+# .gitignore
+api/model_rf.pkl
+api/model_pro.pkl
+caches/**
+backtests/**/fills.csv

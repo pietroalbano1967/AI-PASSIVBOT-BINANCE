@@ -10,7 +10,7 @@ from .ws_signals import register_ws_signals
 from .routes_predict import router as predict_router
 from .routes_tickers import router as tickers_router
 from .routes_candles import router as candles_router
-
+from .routes_orders import router as orders_router   # ✅ nuovo import
 
 
 app = FastAPI(title="Passivbot AI API")
@@ -19,11 +19,12 @@ app = FastAPI(title="Passivbot AI API")
 app.include_router(tickers_router)
 app.include_router(candles_router)
 app.include_router(saved_candles_router)
+app.include_router(orders_router)   # ✅ collegato qui
 
 # 🔓 Abilita CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200", "http://127.0.0.1:4200"],
+    allow_origins=["http://localhost:4200", "http://127.0.0.1:4200", "http://localhost:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -26,28 +26,29 @@ def register_ws_candles(app):
     @app.websocket("/ws/candles1s")
     async def ws_candles_1s(websocket: WebSocket, symbol: str = Query("btcusdt")):
         await websocket.accept()
-        while True:  # loop di riconnessione
+        while True:
             try:
                 client = await AsyncClient.create()
                 bsm = BinanceSocketManager(client)
                 ts = bsm.trade_socket(symbol.lower())
+
                 candles, current_bucket = [], None
 
                 async with ts as stream:
                     while True:
                         msg = await stream.recv()
                         if "p" not in msg or "q" not in msg:
-                            continue  # ignora messaggi non standard
+                            continue
 
                         price = float(msg["p"])
                         qty = float(msg["q"])
-                        now = int(time.time())
-                        bucket = now
+                        now = int(time.time())  # bucket 1s
 
-                        if current_bucket != bucket:
-                            current_bucket = bucket
+                        if current_bucket != now:
+                            current_bucket = now
                             candles.append({
-                                "t": bucket, "s": symbol.upper(),
+                                "t": now,
+                                "s": symbol.upper(),
                                 "o": price, "h": price,
                                 "l": price, "c": price, "v": qty
                             })
@@ -61,23 +62,22 @@ def register_ws_candles(app):
                         candles = candles[-200:]
 
                         try:
-                            await websocket.send_json(candles[-1])
+                            await websocket.send_json(candles[-1])  # invia solo ultima candela
                         except Exception as e:
-                            print(f"⚠️ WS chiuso, stop invio candles: {e}")
+                            print(f"⚠️ WS chiuso: {e}")
                             return
 
-
-                        save_candles(symbol.upper(), candles)
-
-
             except WebSocketDisconnect:
-                # chiusura normale lato client → esco
+                print(f"🔌 Client disconnesso da /ws/candles1s ({symbol.upper()})")
                 break
             except Exception as e:
                 print(f"⚠️ Errore WS candles {symbol.upper()}: {e}, retry fra 5s")
                 await asyncio.sleep(5)
             finally:
                 await client.close_connection()
+
+
+
 
     @router.get("/saved_candles/{symbol}")
     async def get_saved_candles(symbol: str):

@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 import subprocess
 import pathlib
+from .ai_utils import reload_models   # ✅ importa la funzione che ricarica i modelli
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
 
@@ -26,3 +27,8 @@ def run_optimize(config: str):
 def list_results():
     results_path = BASE_DIR / "optimize_results"
     return {"results": [p.name for p in results_path.iterdir() if p.is_dir()]}
+
+# ✅ nuovo endpoint
+@router.post("/reload_model")
+def reload_model():
+    return reload_models()
