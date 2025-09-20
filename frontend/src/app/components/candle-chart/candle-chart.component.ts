@@ -29,7 +29,7 @@ export type Candle = {
 export class CandleChartComponent implements OnInit, OnChanges, OnDestroy {
   @ViewChild('chart') chart!: ChartComponent;
   @Input() symbol: string = 'BTCUSDT';
-
+  isLoading = false;
   candles: Candle[] = [];
   ws: WebSocket | null = null;
 
@@ -54,14 +54,18 @@ export class CandleChartComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    // Quando cambia il simbolo, riconnetti il WebSocket
     if (changes['symbol'] && !changes['symbol'].firstChange) {
+      this.isLoading = true;
       this.disconnect();
-      this.candles = []; // Resetta le candele
-      this.updateChart(); // Aggiorna il grafico vuoto
-      this.connectWS(); // Riconnetti con il nuovo simbolo
+      this.candles = [];
+      this.updateChart();
+      setTimeout(() => {
+        this.connectWS();
+        this.isLoading = false;
+      }, 100);
     }
   }
+
 
   ngOnDestroy() {
     this.disconnect();

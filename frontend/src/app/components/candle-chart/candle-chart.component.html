@@ -1,6 +1,10 @@
 <div class="p-4">
-  <apx-chart 
+ <!-- Nel template -->
+<div *ngIf="isLoading" class="loading">Caricamento {{symbol}}...</div>
+
+ <apx-chart 
     #chart
+    *ngIf="!isLoading" 
     [series]="chartOptions.series"
     [chart]="chartOptions.chart"
     [xaxis]="chartOptions.xaxis"
