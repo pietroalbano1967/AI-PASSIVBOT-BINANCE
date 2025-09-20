@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, Input } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   NgApexchartsModule,
@@ -26,14 +26,12 @@ export type Candle = {
     </apx-chart>`,
   styleUrls: ['./candle-chart.component.scss']
 })
-export class CandleChartComponent implements OnInit, OnDestroy {
-  
-  
+export class CandleChartComponent implements OnInit, OnChanges, OnDestroy {
   @ViewChild('chart') chart!: ChartComponent;
   @Input() symbol: string = 'BTCUSDT';
 
   candles: Candle[] = [];
-  ws!: WebSocket;
+  ws: WebSocket | null = null;
 
   chartOptions: {
     series: ApexAxisChartSeries;
@@ -55,8 +53,25 @@ export class CandleChartComponent implements OnInit, OnDestroy {
     this.connectWS();
   }
 
+  ngOnChanges(changes: SimpleChanges) {
+    // Quando cambia il simbolo, riconnetti il WebSocket
+    if (changes['symbol'] && !changes['symbol'].firstChange) {
+      this.disconnect();
+      this.candles = []; // Resetta le candele
+      this.updateChart(); // Aggiorna il grafico vuoto
+      this.connectWS(); // Riconnetti con il nuovo simbolo
+    }
+  }
+
   ngOnDestroy() {
-    if (this.ws) this.ws.close();
+    this.disconnect();
+  }
+
+  disconnect() {
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
   }
 
   connectWS() {
@@ -120,6 +135,13 @@ export class CandleChartComponent implements OnInit, OnDestroy {
         name: 'Candles',
         data: seriesData 
       }], false);
+      
+      // Aggiorna anche il titolo con il simbolo corrente
+      this.chart.updateOptions({
+        title: {
+          text: `${this.symbol} Candele (1s)`
+        }
+      });
     }
   }
 }

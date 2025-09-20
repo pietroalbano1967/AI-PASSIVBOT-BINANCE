@@ -76,6 +76,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
   
 // Aggiungi questa funzione per gestire il cambio simbolo
+// In dashboard.component.ts
 onSymbolSelected(symbol: string) {
   console.log("📊 Nuovo simbolo selezionato:", symbol);
   this.currentSymbol = symbol.toUpperCase();
@@ -86,7 +87,6 @@ onSymbolSelected(symbol: string) {
   // Forza il reload del componente
   this.cdr.detectChanges();
 }
-
 
 
 
