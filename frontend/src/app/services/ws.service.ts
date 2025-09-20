@@ -45,6 +45,7 @@ export class WsService {
   }
 
   connectCandles(symbol: string, interval: string): Observable<any> {
+    // ✅ URL corretto
     const url = `ws://localhost:8000/ws/candles${interval}?symbol=${symbol.toLowerCase()}`;
     console.log('🔗 Connessione a:', url);
     return this.connect(url);

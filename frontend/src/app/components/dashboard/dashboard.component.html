@@ -1,13 +1,13 @@
 <div class="dashboard-grid">
   <!-- 📊 Candlestick -->
   <div class="grid-item" style="grid-row: 1 / span 2; grid-column: 1 / span 2;">
-  <div class="card">
-    <app-candle-chart 
-      *ngIf="currentSymbol"
-      [symbol]="currentSymbol">
-    </app-candle-chart>
+    <div class="card">
+      <app-candle-chart 
+        *ngIf="currentSymbol"
+        [symbol]="currentSymbol">
+      </app-candle-chart>
+    </div>
   </div>
-</div>
 
   <div class="grid-item" style="grid-row: 1 / span 2; grid-column: 3;">
     <div class="card">
@@ -15,8 +15,6 @@
       <app-mini-ticker (symbolSelected)="onSymbolSelected($event)"></app-mini-ticker>
     </div>
   </div>
-
-
 
   <!-- 📊 Volumi -->
   <div class="grid-item" style="grid-row: 3; grid-column: 1 / span 2;">
@@ -58,3 +56,4 @@
     </div>
   </div>
 </div>
+<!-- RIMUOVI QUESTO: </div> -->

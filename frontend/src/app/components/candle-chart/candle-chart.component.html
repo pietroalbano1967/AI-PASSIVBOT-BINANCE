@@ -1,30 +1,9 @@
-<!-- candle-chart.component.html -->
-<div *ngIf="loading" class="loading-overlay">
-  ⏳ Connessione a {{ symbol }}...
-</div>
-
-<div class="chart-container" [class.hidden]="loading">
-  <apx-chart
-    *ngIf="candles.length > 0"
-    [series]="chartOptions.series!"
-    [chart]="chartOptions.chart!"
-    [xaxis]="chartOptions.xaxis!"
-    [yaxis]="chartOptions.yaxis!"
-    [title]="chartOptions.title!">
+<div class="p-4">
+  <apx-chart 
+    #chart
+    [series]="chartOptions.series"
+    [chart]="chartOptions.chart"
+    [xaxis]="chartOptions.xaxis"
+    [title]="chartOptions.title">
   </apx-chart>
-</div>
-
-<div *ngIf="!loading && candles.length === 0 && !errorMessage" class="no-data">
-  ⚠️ In attesa di dati per {{ symbol }}
-</div>
-
-<div *ngIf="errorMessage" class="error">
-  ❌ Errore: {{ errorMessage }}
-  <button (click)="retry()" class="retry-btn">Riprova</button>
-  <button (click)="testBackendConnection()" class="retry-btn">Test Backend</button>
-</div>
-
-<!-- Debug info -->
-<div *ngIf="!loading && candles.length > 0" class="debug-info">
-  <small>Dati in tempo reale: {{ candles.length }} candele - Ultimo aggiornamento: {{ candles[candles.length - 1].x | date:'HH:mm:ss' }}</small>
 </div>

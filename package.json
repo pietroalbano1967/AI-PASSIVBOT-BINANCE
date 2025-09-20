@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "apexcharts": "^5.3.5",
+    "ng-apexcharts": "^2.0.1"
+  }
+}
