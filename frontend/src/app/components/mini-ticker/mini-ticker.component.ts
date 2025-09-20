@@ -46,6 +46,7 @@ export class MiniTickerComponent implements OnInit, OnDestroy {
 
   // 👇 quando clicchi su una card
   selectSymbol(symbol: string) {
-    this.symbolSelected.emit(symbol.toUpperCase()); // sempre maiuscolo es. ETHUSDT
-  }
+  console.log("🔘 Simbolo selezionato:", symbol);
+  this.symbolSelected.emit(symbol.toUpperCase());
+}
 }

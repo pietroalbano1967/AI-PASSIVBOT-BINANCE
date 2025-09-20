@@ -5,7 +5,9 @@ import {
   OnChanges,
   SimpleChanges,
   ViewChild,
-  Input
+  Input,
+  ChangeDetectorRef,
+  NgZone
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -50,10 +52,16 @@ export class CandleChartComponent implements OnInit, OnDestroy, OnChanges {
   candles: CandleSeries[] = [];
   loading: boolean = true;
   errorMessage: string = '';
+  private maxCandles = 50;
+  private initialDataLoaded: boolean = false;
+  private updateQueue: any[] = [];
+  private isUpdating: boolean = false;
 
   constructor(
     private candleService: CandleService,
-    private wsService: WsService
+    private wsService: WsService,
+    private cdr: ChangeDetectorRef,
+    private ngZone: NgZone
   ) {
     this.chartOptions = {
       series: [{ name: 'candles', data: [] }],
@@ -72,10 +80,14 @@ export class CandleChartComponent implements OnInit, OnDestroy, OnChanges {
             pan: true,
             reset: true
           }
+        },
+        animations: {
+          enabled: false, // Disabilita animazioni per evitare lampeggi
+          speed: 0
         }
       },
       title: { 
-        text: 'BTCUSDT Candlestick', 
+        text: `${this.symbol} Candlestick`, 
         align: 'left',
         style: {
           color: '#fff',
@@ -103,15 +115,16 @@ export class CandleChartComponent implements OnInit, OnDestroy, OnChanges {
 
   ngOnInit(): void {
     console.log('📈 CandleChartComponent inizializzato con simbolo:', this.symbol);
-    this.loadData();
+    this.connectWebSocket();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['symbol'] && changes['symbol'].currentValue !== changes['symbol'].previousValue) {
       console.log('🔄 Cambio simbolo:', this.symbol);
+      this.loading = true;
       this.stopStream();
       this.clearChartData();
-      this.loadData();
+      this.connectWebSocket();
     }
   }
 
@@ -121,82 +134,79 @@ export class CandleChartComponent implements OnInit, OnDestroy, OnChanges {
 
   retry() {
     this.errorMessage = '';
-    this.loadData();
+    this.connectWebSocket();
   }
 
- private loadData() {
-  console.log('🔁 loadData chiamato per:', this.symbol);
-  this.stopStream();
-  this.clearChartData();
-  this.loading = true;
-  this.errorMessage = '';
+  private connectWebSocket() {
+    console.log('📡 Tentativo connessione WS per:', this.symbol.toLowerCase());
+    
+    this.stopStream();
+    this.loading = true;
+    this.errorMessage = '';
+    this.initialDataLoaded = false;
+    
+    this.wsSub = this.wsService
+      .connectCandles(this.symbol.toLowerCase(), '1s')
+      .subscribe({
+        next: (wsData: any) => {
+          if (!this.initialDataLoaded) {
+            this.loading = false;
+            this.initialDataLoaded = true;
+            this.cdr.detectChanges();
+          }
+          
+          // Aggiungi all'update queue invece di processare immediatamente
+          this.updateQueue.push(wsData);
+          
+          // Processa la coda (debounce per evitare troppi aggiornamenti)
+          if (!this.isUpdating) {
+            this.processUpdateQueue();
+          }
+        },
+        error: (err: any) => {
+          console.error('❌ Errore WS subscription:', err);
+          this.loading = false;
+          this.errorMessage = 'Errore di connessione WebSocket';
+          this.cdr.detectChanges();
+          
+          setTimeout(() => this.connectWebSocket(), 5000);
+        },
+        complete: () => {
+          console.log('🔌 WS subscription completata');
+        }
+      });
+  }
 
-  // 1️⃣ storico REST
-  console.log('📡 Richiesta REST per:', this.symbol);
-  this.candleService.getCandles(this.symbol, '1m', 100).subscribe({
-    next: (candles: Candle[]) => {
-      console.log('✅ Dati REST ricevuti:', candles.length, 'candele');
-      
-      if (candles && candles.length > 0) {
-        this.candles = candles.map(c => ({
-          x: new Date(c.t * 1000),
-          y: [c.o, c.h, c.l, c.c]
-        }));
-        
-        console.log('📊 Candele processate:', this.candles.length);
-        
-        // Aggiorna il chart
-        this.chartOptions = {
-          ...this.chartOptions,
-          series: [{ name: 'candles', data: [...this.candles] }]
-        };
-        
-        // 2️⃣ Connetti WebSocket SOLO dopo i dati REST
-        this.connectWebSocket();
-      } else {
-        this.errorMessage = 'Nessun dato disponibile';
-      }
-
-      this.loading = false;
-    },
-    error: (err) => {
-      console.error('❌ Errore caricamento storico:', err);
-      this.loading = false;
-      this.errorMessage = 'Errore caricamento dati';
-    }
-  });
-}
-
-  // candle-chart.component.ts
-private connectWebSocket() {
-  console.log('📡 Tentativo connessione WS per:', this.symbol.toLowerCase());
+ private processUpdateQueue() {
+  if (this.updateQueue.length === 0) {
+    this.isUpdating = false;
+    return;
+  }
   
-  this.stopStream();
+  this.isUpdating = true;
   
-  this.wsSub = this.wsService
-    .connectCandles(this.symbol.toLowerCase(), '1s')
-    .subscribe({
-      next: (wsData: any) => {
-        console.log('📡 Dati WS ricevuti:', wsData);
-        this.updateCandles(wsData);  // ← Passa direttamente i dati WS
-      },
-      error: (err: any) => {
-        console.error('❌ Errore WS subscription:', err);
-        // Prova a riconnettere dopo 5 secondi
-        setTimeout(() => this.connectWebSocket(), 5000);
-      },
-      complete: () => {
-        console.log('🔌 WS subscription completata');
-      }
+  // ✅ CORREZIONE: Processa TUTTI gli elementi nella coda
+  const queueToProcess = [...this.updateQueue];
+  this.updateQueue = []; // Svuota la coda dopo averla copiata
+  
+  this.ngZone.runOutsideAngular(() => {
+    // Processa tutti gli elementi della coda
+    queueToProcess.forEach(wsData => {
+      this.updateCandles(wsData);
     });
+    
+    // Debounce: aspetta 50ms invece di 100ms
+    setTimeout(() => {
+      this.isUpdating = false;
+      this.processUpdateQueue();
+    }, 50);
+  });
 }
 
   private clearChartData() {
     this.candles = [];
-    this.chartOptions = {
-      ...this.chartOptions,
-      series: [{ name: 'candles', data: [] }]
-    };
+    this.updateQueue = [];
+    this.updateChartData();
   }
 
   private stopStream() {
@@ -206,6 +216,8 @@ private connectWebSocket() {
       console.log('🔌 WebSocket disconnesso');
     }
     this.wsService.disconnect();
+    this.updateQueue = [];
+    this.isUpdating = false;
   }
 
   public testBackendConnection() {
@@ -215,49 +227,76 @@ private connectWebSocket() {
         console.error('❌ Backend non raggiungibile', err);
         this.errorMessage = 'Backend non raggiungibile. Verifica che il server sia in esecuzione.';
         this.loading = false;
+        this.cdr.detectChanges();
       }
     });
   }
 
-// candle-chart.component.ts
-private updateCandles(wsData: any) {
-  console.log('📡 Dato WS ricevuto:', wsData);
-  
-  // Normalizza i dati - il WS usa 's' invece di 'symbol'
-  const candle: Candle = {
-    t: wsData.t || Math.floor(Date.now() / 1000),
-    symbol: wsData.symbol || wsData.s,  // ← 's' invece di 'symbol'
-    o: Number(wsData.o || wsData.open),
-    h: Number(wsData.h || wsData.high), 
-    l: Number(wsData.l || wsData.low),
-    c: Number(wsData.c || wsData.close),
-    v: Number(wsData.v || wsData.volume)
-  };
+  private updateCandles(wsData: any) {
+    try {
+      // Normalizza i dati
+      const candle: Candle = {
+        t: wsData.t || Math.floor(Date.now() / 1000),
+        symbol: wsData.symbol || wsData.s,
+        o: Number(wsData.o || wsData.open),
+        h: Number(wsData.h || wsData.high), 
+        l: Number(wsData.l || wsData.low),
+        c: Number(wsData.c || wsData.close),
+        v: Number(wsData.v || wsData.volume)
+      };
 
-  console.log('🔄 Candela normalizzata:', candle);
+      const candleTime = new Date(candle.t * 1000);
+      const lastCandle = this.candles[this.candles.length - 1];
 
-  const lastCandle = this.candles[this.candles.length - 1];
+      if (lastCandle && lastCandle.x.getTime() === candleTime.getTime()) {
+        // Aggiorna candela esistente
+        lastCandle.y = [candle.o, candle.h, candle.l, candle.c];
+      } else {
+        // Aggiungi nuova candela
+        this.candles.push({
+          x: candleTime,
+          y: [candle.o, candle.h, candle.l, candle.c]
+        });
 
-  if (lastCandle && lastCandle.x.getTime() === candle.t * 1000) {
-    // Aggiorna candela esistente
-    lastCandle.y = [candle.o, candle.h, candle.l, candle.c];
-  } else {
-    // Aggiungi nuova candela
-    this.candles.push({
-      x: new Date(candle.t * 1000),
-      y: [candle.o, candle.h, candle.l, candle.c]
-    });
+        // Mantieni solo ultime 50 candele
+        if (this.candles.length > this.maxCandles) {
+          this.candles.shift();
+        }
+      }
 
-    // Mantieni solo ultime 200 candele
-    if (this.candles.length > 200) {
-      this.candles.shift();
+      // Aggiorna il chart in modo ottimizzato
+      this.updateChartData();
+    } catch (error) {
+      console.error('❌ Errore nell\'aggiornamento delle candele:', error);
     }
   }
 
-  // Aggiorna il chart
-  this.chartOptions = {
-    ...this.chartOptions,
-    series: [{ name: 'candles', data: [...this.candles] }]
+  // Metodo ottimizzato per aggiornare i dati del chart
+  private updateChartData() {
+  // Forza l'aggiornamento completo se necessario
+  if (this.chart && this.chart.updateSeries) {
+    this.chart.updateSeries([{
+      name: 'candles',
+      data: [...this.candles]
+    }], false);
+  } else {
+    // Aggiorna l'oggetto chartOptions se il chart non è ancora inizializzato
+    this.chartOptions.series = [{
+      name: 'candles',
+      data: [...this.candles]
+    }];
+  }
+  
+  // Aggiorna sempre il titolo
+  this.chartOptions.title = {
+    text: `${this.symbol} Candlestick`,
+    align: 'left',
+    style: {
+      color: '#fff',
+      fontSize: '16px'
+    }
   };
+  
+  this.cdr.detectChanges();
 }
 }

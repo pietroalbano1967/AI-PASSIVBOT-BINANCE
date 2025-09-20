@@ -32,3 +32,12 @@ def list_results():
 @router.post("/reload_model")
 def reload_model():
     return reload_models()
+
+# routes_status.py - Aggiungi questo endpoint
+from fastapi import APIRouter
+
+router = APIRouter()
+
+@router.get("/test/connection")
+async def test_connection():
+    return {"status": "success", "message": "Backend is running"}

@@ -1,6 +1,7 @@
 // ws.service.ts
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 
 @Injectable({ providedIn: 'root' })
 export class WsService {
@@ -8,7 +9,6 @@ export class WsService {
   private subject: Subject<any> | null = null;
 
   connect(url: string): Observable<any> {
-    // Disconnetti prima se c'è una connessione esistente
     this.disconnect();
 
     this.ws = new WebSocket(url);
@@ -21,7 +21,6 @@ export class WsService {
     this.ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log('📡 Dati WS ricevuti:', data);
         this.subject?.next(data);
       } catch (error) {
         console.error('❌ Errore parsing WS:', error, event.data);
@@ -39,7 +38,10 @@ export class WsService {
       this.subject?.complete();
     };
 
-    return this.subject.asObservable();
+    // Applica debounce per ridurre gli aggiornamenti
+    return this.subject.asObservable().pipe(
+      debounceTime(50) // Aggiorna massimo ogni 50ms
+    );
   }
 
   connectCandles(symbol: string, interval: string): Observable<any> {

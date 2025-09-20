@@ -3,19 +3,18 @@
   <div class="grid-item" style="grid-row: 1 / span 2; grid-column: 1 / span 2;">
   <div class="card">
     <app-candle-chart 
-  [symbol]="currentSymbol"
-  *ngIf="currentSymbol">
-</app-candle-chart>
+      *ngIf="currentSymbol"
+      [symbol]="currentSymbol">
+    </app-candle-chart>
   </div>
 </div>
 
-<div class="grid-item" style="grid-row: 1 / span 2; grid-column: 3;">
-  <div class="card">
-    <h2>💹 MiniTicker</h2>
-    <app-mini-ticker (symbolSelected)="currentSymbol = $event"></app-mini-ticker>
-
+  <div class="grid-item" style="grid-row: 1 / span 2; grid-column: 3;">
+    <div class="card">
+      <h2>💹 MiniTicker</h2>
+      <app-mini-ticker (symbolSelected)="onSymbolSelected($event)"></app-mini-ticker>
+    </div>
   </div>
-</div>
 
 
 

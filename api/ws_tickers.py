@@ -1,4 +1,4 @@
-# ws_tickers.py - SOSTITUISCI con questo codice
+# ws_tickers.py - Versione corretta
 from fastapi import WebSocket
 from binance import AsyncClient, BinanceSocketManager
 from starlette.websockets import WebSocketDisconnect
@@ -11,8 +11,6 @@ def register_ws_tickers(app):
     async def ws_tickers(websocket: WebSocket):
         await websocket.accept()
         client = None
-        
-        # Aggiungi questa connessione alla lista attiva
         connection_id = id(websocket)
         active_ticker_connections[connection_id] = websocket
         
@@ -20,11 +18,12 @@ def register_ws_tickers(app):
             client = await AsyncClient.create()
             bsm = BinanceSocketManager(client)
             
+            # Streams per i simboli più popolari
             streams = [
                 "btcusdt@miniTicker", "ethusdt@miniTicker", "bnbusdt@miniTicker",
                 "solusdt@miniTicker", "xrpusdt@miniTicker", "adausdt@miniTicker",
-                "dogeusdt@miniTicker", "avaxusdt@miniTicker", "maticusdt@miniTicker",
-                "ltcusdt@miniTicker"
+                "dogeusdt@miniTicker", "dotusdt@miniTicker", "avaxusdt@miniTicker",
+                "linkusdt@miniTicker"
             ]
             
             ts = bsm.multiplex_socket(streams)
@@ -32,17 +31,17 @@ def register_ws_tickers(app):
             async with ts as stream:
                 while True:
                     msg = await stream.recv()
-                    data = msg.get("data")
-
-                    # ✅ Filtra i ticker vuoti o incompleti
-                    if data and data.get("s") and data.get("c"):
+                    data = msg.get("data", {})
+                    
+                    # Formatta i dati in modo compatibile con il frontend
+                    if data:
                         ticker = {
-                            "s": data["s"],  # Usa 's' invece di 'symbol' per compatibilità
-                            "c": float(data["c"]),  # Usa 'c' invece di 'price'
-                            "v": float(data["v"]),  # Usa 'v' invece di 'volume'
-                            "h": float(data["h"]),  # Usa 'h' invece di 'high'
-                            "l": float(data["l"]),  # Usa 'l' invece di 'low'
-                            "o": float(data.get("o", data["c"]))  # Aggiungi open
+                            "s": data.get("s", ""),  # symbol
+                            "c": float(data.get("c", 0)),  # current price
+                            "o": float(data.get("o", data.get("c", 0))),  # open price
+                            "h": float(data.get("h", 0)),  # high price
+                            "l": float(data.get("l", 0)),  # low price
+                            "v": float(data.get("v", 0))   # volume
                         }
                         
                         # Invia solo se la connessione è ancora attiva
@@ -57,7 +56,6 @@ def register_ws_tickers(app):
         except Exception as e:
             print(f"⚠️ Errore WS tickers: {e}")
         finally:
-            # Rimuovi la connessione dalla lista attiva
             if connection_id in active_ticker_connections:
                 del active_ticker_connections[connection_id]
             if client:

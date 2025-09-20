@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -52,7 +52,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private api: ApiService,
     private ordersService: OrdersService,
     private router: Router,
-    private stateService: DashboardStateService
+    private stateService: DashboardStateService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
@@ -74,17 +75,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
   
-// dashboard.component.ts
+// Aggiungi questa funzione per gestire il cambio simbolo
 onSymbolSelected(symbol: string) {
   console.log("📊 Nuovo simbolo selezionato:", symbol);
   this.currentSymbol = symbol.toUpperCase();
   
-  // Forza il cambio detection e il reload del componente candele
-  setTimeout(() => {
-    // Questo assicura che Angular rilevi il cambio e distrugga/ricrei il componente
-    this.currentSymbol = symbol.toUpperCase();
-  }, 0);
+  // Forza la ricreazione del componente candlestick
+  this.stateService.updateState({ currentSymbol: this.currentSymbol });
+  
+  // Forza il reload del componente
+  this.cdr.detectChanges();
 }
+
 
 
 
