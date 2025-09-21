@@ -14,8 +14,9 @@ import { OrdersService } from '../../services/orders.service';
 import { ApiService } from '../../services/api.service';
 import { ApexOptions } from 'apexcharts';
 import { CandleService } from '../../services/candle.service';
-import { Candle } from '../../services/candle.service';
+import { AiSignalsComponent } from '../ai-signals/ai-signals.component';
 import { MiniTickerComponent } from '../../components/mini-ticker/mini-ticker.component';
+import { SignalsService, SignalData } from '../../services/signals.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -26,7 +27,9 @@ import { MiniTickerComponent } from '../../components/mini-ticker/mini-ticker.co
     VolumeChartComponent,
     RsiChartComponent,
     MacdChartComponent,
-    MiniTickerComponent
+    MiniTickerComponent,
+    AiSignalsComponent,
+    RsiChartComponent
   ],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss']
@@ -36,29 +39,57 @@ export class DashboardComponent implements OnInit, OnDestroy {
   currentPage: number = 1;
   itemsPerPage: number = 10;
   currentSymbol: string = 'BTCUSDT';
-  isLoading: boolean = false; // Aggiunta proprietà isLoading
+  isLoading: boolean = false;
+  simulationEnabled: boolean = true;
+  signals: SignalData[] = [];
+  
   private ordersInterval?: any;
+  private signalsSubscription?: Subscription;
 
   constructor(
     private api: ApiService,
     private ws: WsService,
     private ordersService: OrdersService,
     private router: Router,
+    private signalsService: SignalsService,
     private stateService: DashboardStateService,
     private cdr: ChangeDetectorRef
   ) {}
 
-  ngOnInit() {
+   ngOnInit() {
     console.log('📈 Dashboard inizializzata');
     this.loadOrders();
+    this.connectToSignals();
     this.ordersInterval = setInterval(() => this.loadOrders(), 5000);
   }
 
   ngOnDestroy() {
     if (this.ordersInterval) clearInterval(this.ordersInterval);
+    if (this.signalsSubscription) this.signalsSubscription.unsubscribe();
     console.log('📋 Dashboard distrutta');
   }
+  
+  connectToSignals() {
+    this.signalsSubscription = this.signalsService.connect(this.currentSymbol).subscribe({
+      next: (signal: SignalData) => {
+        this.signals.unshift(signal);
+        // Mantieni solo gli ultimi 50 segnali
+        if (this.signals.length > 50) {
+          this.signals.pop();
+        }
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('❌ Errore connessione signals:', err);
+      }
+    });
+  }
 
+  onSimulationToggled(enabled: boolean) {
+    this.simulationEnabled = enabled;
+    this.signalsService.setSimulationEnabled(enabled);
+    console.log(`🎛 Simulazione ${enabled ? 'abilitata' : 'disabilitata'}`);
+  }
   loadOrders() {
     this.ordersService.getOrders().subscribe((res) => {
       const orders = res.orders.sort((a, b) => b.t - a.t);
@@ -73,6 +104,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.currentSymbol = symbol.toUpperCase();
     
     this.stateService.updateState({ currentSymbol: this.currentSymbol });
+    
+    // Riconnetti i signals per il nuovo simbolo
+    if (this.signalsSubscription) {
+      this.signalsSubscription.unsubscribe();
+    }
+    this.signals = [];
+    this.connectToSignals();
     
     setTimeout(() => {
       this.isLoading = false;

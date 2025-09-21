@@ -1,11 +1,28 @@
-<div class="p-4">
+<div class="rsi-chart-container p-4">
+  <!-- Messaggio di caricamento -->
+  <div *ngIf="loading" class="loading-container text-center py-8">
+    <div class="spinner"></div>
+    <p class="text-gray-400 mt-2">Caricamento dati RSI per {{symbol}}...</p>
+  </div>
+
+  <!-- Messaggio di nessun dato -->
+  <div *ngIf="!loading && !hasData" class="no-data-container text-center py-8">
+    <div class="text-yellow-400 text-4xl mb-2">⚠️</div>
+    <p class="text-gray-400">In attesa di dati RSI per {{symbol}}</p>
+    <p class="text-gray-500 text-sm mt-1">Verifica la connessione al backend</p>
+  </div>
+
+  <!-- Grafico -->
   <apx-chart
+    *ngIf="hasData && !loading"
     [series]="chartOptions.series"
     [chart]="chartOptions.chart"
     [xaxis]="chartOptions.xaxis"
     [yaxis]="chartOptions.yaxis"
     [stroke]="chartOptions.stroke"
     [title]="chartOptions.title"
-    [tooltip]="chartOptions.tooltip">
+    [tooltip]="chartOptions.tooltip"
+    [markers]="chartOptions.markers"
+    [grid]="chartOptions.grid">
   </apx-chart>
 </div>

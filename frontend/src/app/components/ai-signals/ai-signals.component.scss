@@ -70,3 +70,42 @@
   td.buy { color: #4caf50; font-weight: bold; }
   td.sell { color: #e53935; font-weight: bold; }
 }
+.signals-container {
+  min-height: 300px;
+}
+
+.signal-list {
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 #1f2937;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #1f2937;
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border-radius: 3px;
+    
+    &:hover {
+      background: #6b7280;
+    }
+  }
+}
+
+.signal-item {
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+  }
+  
+  &:last-child {
+    border-bottom: none;
+  }
+}

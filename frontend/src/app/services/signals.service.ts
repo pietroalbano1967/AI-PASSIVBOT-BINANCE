@@ -21,33 +21,63 @@ export interface SignalData {
 
 @Injectable({ providedIn: 'root' })
 export class SignalsService {
-  private ws: WebSocket | null = null;
+   private ws: WebSocket | null = null;
   private subject?: ReplaySubject<SignalData>;
+  private simulationEnabled = true;
 
   connect(symbol: string = 'BTCUSDT'): Observable<SignalData> {
-    this.disconnect(); // chiude eventuale connessione aperta
-    this.subject = new ReplaySubject<SignalData>(1);
+  this.disconnect();
+  this.subject = new ReplaySubject<SignalData>(50);
 
-    const url = `ws://localhost:8000/ws/signals?symbol=${symbol.toLowerCase()}`;
-    console.log(`🔗 Connessione a signals: ${url}`);
+  const url = `ws://localhost:8000/ws/signals?symbol=${symbol.toLowerCase()}`;
+  console.log(`🔗 Connessione a signals: ${url}`);
 
-    this.ws = new WebSocket(url);
+  this.ws = new WebSocket(url);
 
-    this.ws.onopen = () => console.log(`✅ WS aperto per signals ${symbol}`);
-    this.ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data) as SignalData;
-        console.log("📡 Dati signal:", data);
-        this.subject?.next(data);
-      } catch (err) {
-        console.error("❌ Errore parsing signals:", err, event.data);
+  this.ws.onopen = () => {
+    console.log(`✅ WS aperto per signals ${symbol}`);
+    // Invia un messaggio di test
+    this.subject?.next({
+      symbol: symbol,
+      close: 0,
+      ma5: 0,
+      ma20: 0,
+      rsi: 50, // Valore di test
+      signal: 'HOLD',
+      confidence: 0.5,
+      probs: {},
+      action: null,
+      t: Math.floor(Date.now() / 1000)
+    } as SignalData);
+  };
+
+  this.ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data) as SignalData;
+      console.log("📡 Dati signal ricevuti:", data);
+      
+      if (!this.simulationEnabled) {
+        data.action = null;
       }
-    };
-    this.ws.onerror = (err) => console.error("❌ Errore WS:", err);
-    this.ws.onclose = () => console.log("🔌 WS signals chiuso");
+      
+      this.subject?.next(data);
+    } catch (err) {
+      console.error("❌ Errore parsing signals:", err, event.data);
+    }
+  };
 
-    return this.subject.asObservable();
-  }
+  this.ws.onerror = (err) => {
+    console.error("❌ Errore WS:", err);
+    this.subject?.error(err);
+  };
+
+  this.ws.onclose = () => {
+    console.log("🔌 WS signals chiuso");
+    this.subject?.complete();
+  };
+
+  return this.subject.asObservable();
+}
 
   disconnect() {
     if (this.ws) {
@@ -55,5 +85,13 @@ export class SignalsService {
       this.ws = null;
     }
     this.subject = undefined;
+  }
+  setSimulationEnabled(enabled: boolean) {
+    this.simulationEnabled = enabled;
+    console.log(`🎛 Simulazione ${enabled ? 'abilitata' : 'disabilitata'}`);
+  }
+
+  isSimulationEnabled(): boolean {
+    return this.simulationEnabled;
   }
 }

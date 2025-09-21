@@ -1,7 +1,6 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subscription } from 'rxjs';
-import { SignalsService, SignalData } from '../../services/signals.service';
+import { SignalData } from '../../services/signals.service';
 
 @Component({
   selector: 'app-ai-signals',
@@ -10,43 +9,18 @@ import { SignalsService, SignalData } from '../../services/signals.service';
   templateUrl: './ai-signals.component.html',
   styleUrls: ['./ai-signals.component.scss']
 })
-export class AiSignalsComponent implements OnInit, OnDestroy, OnChanges {
-  @Input() symbol: string = 'BTCUSDT';
-  signals: SignalData[] = [];
+export class AiSignalsComponent {
+  @Input() signals: SignalData[] = [];
+  @Input() simulationEnabled: boolean = true;
+  @Output() simulationToggled = new EventEmitter<boolean>();
 
-  private subscription?: Subscription;
-
-  constructor(private signalsService: SignalsService) {}
-
-  ngOnInit() {
-    this.connectWS();
+  toggleSimulation() {
+    this.simulationEnabled = !this.simulationEnabled;
+    this.simulationToggled.emit(this.simulationEnabled);
   }
 
-  ngOnChanges(changes: SimpleChanges) {
-    if (changes['symbol'] && !changes['symbol'].firstChange) {
-      console.log("🔄 Cambio simbolo AI-Signals:", this.symbol);
-      this.disconnect();
-      this.signals = [];
-      this.connectWS();
-    }
-  }
-
-  private connectWS() {
-    this.subscription = this.signalsService.connect(this.symbol).subscribe((data: SignalData) => {
-      this.signals.unshift(data);
-      this.signals = this.signals.slice(0, 50); // massimo 50 segnali
-    });
-  }
-
-  private disconnect() {
-    if (this.subscription) {
-      this.subscription.unsubscribe();
-      this.subscription = undefined;
-    }
-    this.signalsService.disconnect();
-  }
-
-  ngOnDestroy() {
-    this.disconnect();
+  trackBySignal(index: number, signal: SignalData): string {
+    return `${signal.symbol}-${signal.t}-${signal.signal}`;
   }
 }
+

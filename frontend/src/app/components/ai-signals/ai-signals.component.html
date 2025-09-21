@@ -1,28 +1,74 @@
 <div class="signals-container p-4 bg-gray-900 text-gray-200 rounded-lg shadow-md">
-  <h2 class="text-lg font-bold mb-2">📡 AI Signals</h2>
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-lg font-bold">📡 AI Signals</h2>
+    
+    <!-- Toggle per abilitare/disabilitare la simulazione -->
+    <div class="flex items-center space-x-2">
+      <span class="text-sm text-gray-400">Simulazione</span>
+      <label class="relative inline-flex items-center cursor-pointer">
+        <input 
+          type="checkbox" 
+          [checked]="simulationEnabled" 
+          (change)="toggleSimulation()" 
+          class="sr-only peer"
+        >
+        <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer 
+          peer-checked:after:translate-x-full peer-checked:after:border-white 
+          after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+          after:rounded-full after:h-5 after:w-5 after:transition-all 
+          peer-checked:bg-blue-600"></div>
+      </label>
+    </div>
+  </div>
 
-  <div *ngFor="let s of signals" class="signal-item border-b border-gray-700 py-2">
-    <div class="flex justify-between items-center">
-      <span class="font-semibold">{{ s.symbol }}</span>
-      <span
-        class="px-2 py-1 rounded text-sm"
-        [ngClass]="{
-          'bg-green-600': s.signal.includes('BUY'),
-          'bg-red-600': s.signal.includes('SELL'),
-          'bg-yellow-600': s.signal.includes('HOLD')
-        }"
-      >
-        {{ s.signal }}
-      </span>
-      <span class="text-xs">Conf: {{ s.confidence | percent: '1.0-2' }}</span>
+  <div class="signal-list max-h-80 overflow-y-auto">
+    <div 
+      *ngFor="let s of signals; trackBy: trackBySignal" 
+      class="signal-item border-b border-gray-700 py-2"
+      [class.opacity-60]="!simulationEnabled"
+    >
+      <div class="flex justify-between items-center">
+        <span class="font-semibold text-sm">{{ s.symbol }}</span>
+        <span
+          class="px-2 py-1 rounded text-xs font-medium"
+          [ngClass]="{
+            'bg-green-600 text-white': s.signal.includes('BUY'),
+            'bg-red-600 text-white': s.signal.includes('SELL'),
+            'bg-yellow-600 text-gray-900': s.signal.includes('HOLD')
+          }"
+        >
+          {{ s.signal }}
+        </span>
+        <span class="text-xs text-gray-400">Conf: {{ s.confidence | percent: '1.0-2' }}</span>
+      </div>
+
+      <div class="text-xs mt-1 text-gray-300">
+        📈 Close: {{ s.close | number: '1.2-2' }}
+        <span class="ml-2">📊 RSI: {{ s.rsi | number: '1.0-0' }}</span>
+      </div>
+
+      <div class="text-xs text-gray-500 mt-1">
+        ⏱ {{ s.t * 1000 | date: 'HH:mm:ss' }}
+      </div>
+
+      <div *ngIf="s.action" class="text-xs mt-1">
+        <span 
+          [ngClass]="{
+            'text-green-400': s.action === 'BUY',
+            'text-red-400': s.action === 'SELL'
+          }"
+        >
+          🎯 {{ s.action }} signal
+        </span>
+      </div>
     </div>
 
-    <div class="text-sm mt-1">
-      📈 Close: {{ s.close }}
+    <div *ngIf="signals.length === 0" class="text-center text-gray-500 py-4">
+      <p>⏳ In attesa di segnali...</p>
     </div>
+  </div>
 
-    <div class="text-xs text-gray-500">
-      ⏱ {{ s.t * 1000 | date: 'HH:mm:ss' }}
-    </div>
+  <div *ngIf="!simulationEnabled" class="mt-3 p-2 bg-yellow-900 text-yellow-200 rounded text-xs">
+    ⚠️ Simulazione disabilitata - I segnali vengono mostrati ma non generano ordini
   </div>
 </div>

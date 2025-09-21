@@ -35,24 +35,21 @@
   <!-- 🤖 AI Signals -->
   <div class="grid-item" style="grid-row: 3; grid-column: 3;">
     <div class="card">
-      <h2>🤖 AI Signals</h2>
-      <div class="placeholder-content">
-        <p>Analisi predittiva in tempo reale</p>
-        <div class="signal-status">
-          <span class="status-indicator active"></span>
-          <span>Sistema attivo</span>
-        </div>
-      </div>
+      <app-ai-signals 
+        [signals]="signals"
+        [simulationEnabled]="simulationEnabled"
+        (simulationToggled)="onSimulationToggled($event)">
+      </app-ai-signals>
     </div>
   </div>
 
   <!-- 📈 RSI -->
-  <div class="grid-item rsi">
-    <div class="card">
-      <h2>📈 RSI (14) {{currentSymbol}}</h2>
-      <app-rsi-chart *ngIf="currentSymbol" [symbol]="currentSymbol"></app-rsi-chart>
-    </div>
+<div class="grid-item rsi">
+  <div class="card">
+    <h2>📈 RSI (14) {{currentSymbol}}</h2>
+    <app-rsi-chart *ngIf="currentSymbol && !isLoading" [symbol]="currentSymbol"></app-rsi-chart>
   </div>
+</div>
 
   <!-- 📉 MACD -->
   <div class="grid-item macd">

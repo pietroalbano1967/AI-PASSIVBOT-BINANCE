@@ -1,0 +1,66 @@
+.rsi-chart-container {
+  background: #1a1d29;
+  border-radius: 8px;
+  min-height: 350px;
+  position: relative;
+}
+
+.loading-container, .no-data-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 250px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #3b82f6;
+  border-top: 4px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+// Linee di sovracomprato/sovravenduto
+::ng-deep .rsi-overbought {
+  .apexcharts-yaxis-grid line:nth-child(8) { // circa 70
+    stroke: #ef4444 !important;
+    stroke-dasharray: 4;
+    stroke-width: 2;
+  }
+}
+
+::ng-deep .rsi-oversold {
+  .apexcharts-yaxis-grid line:nth-child(4) { // circa 30
+    stroke: #ef4444 !important;
+    stroke-dasharray: 4;
+    stroke-width: 2;
+  }
+}
+
+::ng-deep .apexcharts-gridline {
+  stroke: #2a2e39 !important;
+}
+
+::ng-deep .apexcharts-tooltip {
+  background: #2d3748 !important;
+  border: 1px solid #4a5568 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+::ng-deep .apexcharts-tooltip-title {
+  background: #4a5568 !important;
+  border-bottom: 1px solid #718096 !important;
+  font-weight: bold !important;
+}
+
+::ng-deep .apexcharts-legend {
+  color: #e0e0e0 !important;
+}
