@@ -14,6 +14,23 @@ CANDLES_FILE = pathlib.Path("candles.json")
 last_save_time = 0  # ⏱ controllo frequenza salvataggio
 
 
+# ------------------ Utils ------------------
+
+def compute_macd(prices, fast=12, slow=26, signal=9):
+    """Calcolo MACD con Pandas (senza TA-Lib)"""
+    df = pd.DataFrame(prices, columns=["close"])
+    df["ema_fast"] = df["close"].ewm(span=fast, adjust=False).mean()
+    df["ema_slow"] = df["close"].ewm(span=slow, adjust=False).mean()
+    df["macd"] = df["ema_fast"] - df["ema_slow"]
+    df["signal"] = df["macd"].ewm(span=signal, adjust=False).mean()
+    df["hist"] = df["macd"] - df["signal"]
+    return (
+        float(df["macd"].iloc[-1]),
+        float(df["signal"].iloc[-1]),
+        float(df["hist"].iloc[-1]),
+    )
+
+
 # ------------------ Persistenza ------------------
 
 def save_orders():
@@ -152,6 +169,9 @@ async def ws_signals(websocket: WebSocket, symbol: str = Query("BTCUSDT")):
 
                     last_row = df.iloc[-1]
 
+                    # 🔹 Calcolo MACD con Pandas
+                    last_macd, last_signal, last_hist = compute_macd(df["close"].values)
+
                     # ✅ invia solo l’ultimo segnale
                     try:
                         await websocket.send_json({
@@ -160,6 +180,11 @@ async def ws_signals(websocket: WebSocket, symbol: str = Query("BTCUSDT")):
                             "ma5": float(last_row["ma5"]),
                             "ma20": float(last_row["ma20"]),
                             "rsi": float(last_row["rsi"]),
+                            "macd": {
+                                "macd": last_macd,
+                                "signal": last_signal,
+                                "hist": last_hist
+                            },
                             "signal": signal,
                             "confidence": round(confidence, 3),
                             "probs": probs_dict,

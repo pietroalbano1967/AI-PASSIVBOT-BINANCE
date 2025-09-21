@@ -1,28 +1,32 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef} from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
-import { NgApexchartsModule, ApexOptions } from 'ng-apexcharts';
-
-import { OrdersService, Order } from '../../services/orders.service';
-import { ApiService } from '../../services/api.service';
-import { DashboardStateService } from '../../services/dashboard-state.service';
-
-// Import dei componenti
 import { CandleChartComponent } from '../candle-chart/candle-chart.component';
-import { MiniTickerComponent } from '../mini-ticker/mini-ticker.component';
+import { VolumeChartComponent } from '../volume-chart/volume-chart.component';
+import { RsiChartComponent } from '../rsi-chart/rsi-chart.component';
+import { MacdChartComponent } from '../macd-chart/macd-chart.component';
+import { WsService } from '../../services/ws.service';
+import { Subscription } from 'rxjs';
+import { Router } from '@angular/router';
+import { DashboardStateService } from '../../services/dashboard-state.service';
+import { DashboardState } from '../../services/dashboard-state.service';
+import { Order } from '../../services/orders.service';
+import { OrdersService } from '../../services/orders.service';
+import { ApiService } from '../../services/api.service';
+import { ApexOptions } from 'apexcharts';
+import { CandleService } from '../../services/candle.service';
+import { Candle } from '../../services/candle.service';
+import { MiniTickerComponent } from '../../components/mini-ticker/mini-ticker.component';
 
-import { OrdersComponent } from '../orders/orders.component';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
   imports: [
-    RouterModule,
     CommonModule,
-    FormsModule,
     CandleChartComponent,
-    MiniTickerComponent,
-    NgApexchartsModule,  
+    VolumeChartComponent,
+    RsiChartComponent,
+    MacdChartComponent,
+    MiniTickerComponent
   ],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss']
@@ -32,24 +36,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   currentPage: number = 1;
   itemsPerPage: number = 10;
   currentSymbol: string = 'BTCUSDT';
+  isLoading: boolean = false; // Aggiunta proprietà isLoading
   private ordersInterval?: any;
-
-  // ✅ FIX: definito rsiChartOptions
-  public rsiChartOptions: Partial<ApexOptions> = {
-    series: [{ name: 'RSI', data: [] }],
-    chart: { type: 'line', height: 150, background: '#1e222d' },
-    xaxis: { type: 'datetime', labels: { style: { colors: '#ccc' } } },
-    yaxis: {
-      min: 0,
-      max: 100,
-      labels: { style: { colors: '#ccc' } }
-    },
-    stroke: { width: 2, curve: 'smooth' },
-    colors: ['#1976d2']
-  };
 
   constructor(
     private api: ApiService,
+    private ws: WsService,
     private ordersService: OrdersService,
     private router: Router,
     private stateService: DashboardStateService,
@@ -74,19 +66,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.updatePaginatedOrders();
     });
   }
-  
-// Aggiungi questa funzione per gestire il cambio simbolo
-// In dashboard.component.ts
-onSymbolSelected(symbol: string) {
-  console.log("📊 Nuovo simbolo selezionato:", symbol);
-  this.currentSymbol = symbol.toUpperCase();
-  
-  // Forza la ricreazione del componente candlestick
-  this.stateService.updateState({ currentSymbol: this.currentSymbol });
-  
-  // Forza il reload del componente
-  this.cdr.detectChanges();
-}
+
+  onSymbolSelected(symbol: string) {
+    console.log("📊 Nuovo simbolo selezionato:", symbol);
+    this.isLoading = true;
+    this.currentSymbol = symbol.toUpperCase();
+    
+    this.stateService.updateState({ currentSymbol: this.currentSymbol });
+    
+    setTimeout(() => {
+      this.isLoading = false;
+      this.cdr.detectChanges();
+    }, 1000);
+  }
 
 
 
