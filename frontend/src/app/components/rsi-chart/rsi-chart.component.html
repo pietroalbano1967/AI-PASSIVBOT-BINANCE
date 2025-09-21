@@ -1,7 +1,11 @@
-<apx-chart
-  [series]="series"
-  [chart]="chart"
-  [xaxis]="xaxis"
-  [title]="title"
-  [yaxis]="{ labels: { style: { colors: '#9ca3af' } } }">
-</apx-chart>
+<div class="p-4">
+  <apx-chart
+    [series]="chartOptions.series"
+    [chart]="chartOptions.chart"
+    [xaxis]="chartOptions.xaxis"
+    [yaxis]="chartOptions.yaxis"
+    [stroke]="chartOptions.stroke"
+    [title]="chartOptions.title"
+    [tooltip]="chartOptions.tooltip">
+  </apx-chart>
+</div>

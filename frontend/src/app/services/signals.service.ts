@@ -22,10 +22,11 @@ export interface SignalData {
 @Injectable({ providedIn: 'root' })
 export class SignalsService {
   private ws: WebSocket | null = null;
-  private subject = new ReplaySubject<SignalData>(1);
+  private subject?: ReplaySubject<SignalData>;
 
   connect(symbol: string = 'BTCUSDT'): Observable<SignalData> {
-    this.disconnect();
+    this.disconnect(); // chiude eventuale connessione aperta
+    this.subject = new ReplaySubject<SignalData>(1);
 
     const url = `ws://localhost:8000/ws/signals?symbol=${symbol.toLowerCase()}`;
     console.log(`🔗 Connessione a signals: ${url}`);
@@ -37,7 +38,7 @@ export class SignalsService {
       try {
         const data = JSON.parse(event.data) as SignalData;
         console.log("📡 Dati signal:", data);
-        this.subject.next(data);
+        this.subject?.next(data);
       } catch (err) {
         console.error("❌ Errore parsing signals:", err, event.data);
       }
@@ -53,5 +54,6 @@ export class SignalsService {
       this.ws.close();
       this.ws = null;
     }
+    this.subject = undefined;
   }
 }

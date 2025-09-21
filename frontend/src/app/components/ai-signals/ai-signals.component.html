@@ -1,20 +1,28 @@
-<div class="signals-table-container">
-  <table class="styled-table">
-    <thead>
-      <tr>
-        <th>Time</th>
-        <th>Close</th>
-        <th>Signal</th>
-        <th>Conf.</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let s of signals">
-        <td>{{ s.t * 1000 | date:'shortTime' }}</td>
-        <td>{{ s.close | number:'1.2-2' }}</td>
-        <td>{{ s.signal }}</td>
-        <td>{{ s.confidence | percent:'1.0-1' }}</td>
-      </tr>
-    </tbody>
-  </table>
+<div class="signals-container p-4 bg-gray-900 text-gray-200 rounded-lg shadow-md">
+  <h2 class="text-lg font-bold mb-2">📡 AI Signals</h2>
+
+  <div *ngFor="let s of signals" class="signal-item border-b border-gray-700 py-2">
+    <div class="flex justify-between items-center">
+      <span class="font-semibold">{{ s.symbol }}</span>
+      <span
+        class="px-2 py-1 rounded text-sm"
+        [ngClass]="{
+          'bg-green-600': s.signal.includes('BUY'),
+          'bg-red-600': s.signal.includes('SELL'),
+          'bg-yellow-600': s.signal.includes('HOLD')
+        }"
+      >
+        {{ s.signal }}
+      </span>
+      <span class="text-xs">Conf: {{ s.confidence | percent: '1.0-2' }}</span>
+    </div>
+
+    <div class="text-sm mt-1">
+      📈 Close: {{ s.close }}
+    </div>
+
+    <div class="text-xs text-gray-500">
+      ⏱ {{ s.t * 1000 | date: 'HH:mm:ss' }}
+    </div>
+  </div>
 </div>

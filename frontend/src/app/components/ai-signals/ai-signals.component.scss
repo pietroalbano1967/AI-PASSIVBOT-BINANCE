@@ -52,3 +52,21 @@
   padding: 8px 12px;
   text-align: center;
 }
+.signals-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  th, td {
+    padding: 6px 8px;
+    text-align: center;
+  }
+  th {
+    background: #222;
+    color: #bbb;
+  }
+  tr:nth-child(even) {
+    background: #111;
+  }
+  td.buy { color: #4caf50; font-weight: bold; }
+  td.sell { color: #e53935; font-weight: bold; }
+}

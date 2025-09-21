@@ -1,8 +1,28 @@
-import { Component, OnInit, OnDestroy, Input } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NgApexchartsModule, ApexAxisChartSeries, ApexChart, ApexXAxis, ApexTitleSubtitle } from 'ng-apexcharts';
-import { SignalsService, SignalData } from '../../services/signals.service';
+import {
+  NgApexchartsModule,
+  ChartComponent,
+  ApexAxisChartSeries,
+  ApexChart,
+  ApexXAxis,
+  ApexYAxis,
+  ApexStroke,
+  ApexTitleSubtitle,
+  ApexTooltip
+} from 'ng-apexcharts';
 import { Subscription } from 'rxjs';
+import { SignalsService, SignalData } from '../../services/signals.service';
+
+export type ChartOptions = {
+  series: ApexAxisChartSeries;
+  chart: ApexChart;
+  xaxis: ApexXAxis;
+  yaxis: ApexYAxis;
+  stroke: ApexStroke;
+  title: ApexTitleSubtitle;
+  tooltip: ApexTooltip;
+};
 
 @Component({
   selector: 'app-rsi-chart',
@@ -15,29 +35,59 @@ export class RsiChartComponent implements OnInit, OnDestroy {
   @Input() symbol: string = 'BTCUSDT';
   private subscription?: Subscription;
 
-  series: ApexAxisChartSeries = [{ name: 'RSI', data: [] as { x: Date; y: number }[] }];
-  chart: ApexChart = { type: 'line', height: 250 };
-  xaxis: ApexXAxis = { type: 'datetime' };
-  title: ApexTitleSubtitle = { text: 'RSI (14)', align: 'center' };
+  public chartOptions: ChartOptions = {
+  series: [
+    {
+      name: 'RSI',
+      data: []
+    }
+  ],
+  chart: {
+    type: 'line',
+    height: 300,
+    background: '#1a1d29',
+    foreColor: '#e0e0e0',
+    animations: { enabled: false },
+    toolbar: { show: true }
+  },
+  xaxis: { type: 'datetime' },
+  yaxis: {
+    min: 0,
+    max: 100,
+    labels: { style: { colors: '#9ca3af' } }
+  },
+  stroke: { curve: 'smooth', width: 2 },
+  title: {
+    text: 'RSI (14)',
+    align: 'center',
+    style: { color: '#e0e0e0' }
+  },
+  tooltip: { theme: 'dark' }
+};
 
-  private rsiData: { x: Date; y: number }[] = [];
-
-  constructor(private signals: SignalsService) {}
+  constructor(private signalsService: SignalsService) {}
 
   ngOnInit() {
-    this.subscription = this.signals.connect(this.symbol).subscribe((data: SignalData) => {
-      if (data.rsi !== undefined && data.rsi !== null) {
-        this.rsiData.push({ x: new Date(data.t * 1000), y: data.rsi });
-        if (this.rsiData.length > 100) this.rsiData.shift();
-        this.series = [{ name: 'RSI', data: [...this.rsiData] }];
-      }
+    this.subscription = this.signalsService.connect(this.symbol).subscribe((data: SignalData) => {
+      this.addRSI(data);
     });
   }
 
   ngOnDestroy() {
-    if (this.subscription) {
-      this.subscription.unsubscribe();
-      this.signals.disconnect();
-    }
+    this.subscription?.unsubscribe();
+    this.signalsService.disconnect();
+  }
+
+  private addRSI(data: SignalData) {
+    const point = { x: new Date(data.t * 1000), y: data.rsi };
+    const series = this.chartOptions.series?.[0].data as any[];
+
+    series.push(point);
+    if (series.length > 50) series.shift(); // max 50 punti
+
+    this.chartOptions = {
+      ...this.chartOptions,
+      series: [{ name: 'RSI', data: [...series] }]
+    };
   }
 }
