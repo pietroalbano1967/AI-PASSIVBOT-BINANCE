@@ -1,7 +1,10 @@
-<apx-chart
-  #chart
-  [series]="chartOptions.series"
-  [chart]="chartOptions.chart"
-  [xaxis]="chartOptions.xaxis"
-  [yaxis]="chartOptions.yaxis">
-</apx-chart>
+<div class="volume-chart-container p-4">
+  <apx-chart
+    [series]="chartOptions.series"
+    [chart]="chartOptions.chart"
+    [xaxis]="chartOptions.xaxis"
+    [yaxis]="chartOptions.yaxis"
+    [title]="chartOptions.title"
+    [tooltip]="chartOptions.tooltip">
+  </apx-chart>
+</div>

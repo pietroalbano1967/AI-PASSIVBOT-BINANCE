@@ -1,20 +1,24 @@
-<div class="rsi-chart-container p-4">
-  <!-- Messaggio di caricamento -->
-  <div *ngIf="loading" class="loading-container text-center py-8">
+<div class="chart-container">
+  <div class="connection-status" [class.connected]="isConnected" [class.disconnected]="!isConnected">
+    {{ isConnected ? '✅ Connesso' : '❌ Disconnesso' }}
+  </div>
+
+  <div *ngIf="loading" class="loading">
     <div class="spinner"></div>
-    <p class="text-gray-400 mt-2">Caricamento dati RSI per {{symbol}}...</p>
+    <span>Connessione a {{symbol}}...</span>
+  </div>
+  
+  <div *ngIf="errorMessage" class="error-message">
+    {{errorMessage}}
+    <button (click)="connectToSignals()" class="retry-btn">Riprova</button>
   </div>
 
-  <!-- Messaggio di nessun dato -->
-  <div *ngIf="!loading && !hasData" class="no-data-container text-center py-8">
-    <div class="text-yellow-400 text-4xl mb-2">⚠️</div>
-    <p class="text-gray-400">In attesa di dati RSI per {{symbol}}</p>
-    <p class="text-gray-500 text-sm mt-1">Verifica la connessione al backend</p>
+  <div *ngIf="!loading && !hasData && !errorMessage" class="no-data">
+    <p>In attesa di dati per {{symbol}}</p>
   </div>
 
-  <!-- Grafico -->
   <apx-chart
-    *ngIf="hasData && !loading"
+    *ngIf="!loading && hasData"
     [series]="chartOptions.series"
     [chart]="chartOptions.chart"
     [xaxis]="chartOptions.xaxis"

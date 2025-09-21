@@ -4,6 +4,7 @@ from binance import AsyncClient, BinanceSocketManager
 import numpy as np, time, pandas as pd
 from .ai_utils import compute_features, models, FEATURE_COLUMNS
 import json, pathlib
+import asyncio  # ✅ IMPORT AGGIUNTA
 
 router = APIRouter()
 
@@ -82,127 +83,190 @@ def load_candles(symbol: str):
 async def ws_signals(websocket: WebSocket, symbol: str = Query("BTCUSDT")):
     global order_id
 
+    symbol_upper = symbol.upper()
+    print(f"🔗 Richiesta WebSocket signals per: {symbol_upper}")
+
+    # ✅ VERIFICA E GESTISCI MODELLO MANCANTE
+    model = models.get(symbol_upper)
+    if not model:
+        print(f"⚠️  Modello non trovato per {symbol_upper}, uso BTCUSDT come fallback")
+        model = models.get("BTCUSDT")  # Fallback al modello BTC
+    
+    if not model:
+        error_msg = f"❌ Nessun modello disponibile per {symbol_upper}"
+        print(error_msg)
+        await websocket.close(code=1003, reason=error_msg)
+        return
+
     await websocket.accept()
+    print(f"✅ WebSocket signals APERTO per {symbol_upper}")
+
     client = await AsyncClient.create()
     bsm = BinanceSocketManager(client)
-    ts = bsm.kline_socket(symbol.lower(), interval="1m")
-
-    closes, highs, lows, volumes = [], [], [], []
-
+    
     try:
+        # Usa interval più lungo per performance
+        ts = bsm.kline_socket(symbol.lower(), interval="1m")
+        closes, highs, lows, volumes = [], [], [], []
+        last_heartbeat = time.time()
+
         async with ts as stream:
             while True:
-                msg = await stream.recv()
-                k = msg["k"]
-
-                closes.append(float(k["c"]))
-                highs.append(float(k["h"]))
-                lows.append(float(k["l"]))
-                volumes.append(float(k["v"]))
-                closes, highs, lows, volumes = closes[-300:], highs[-300:], lows[-300:], volumes[-300:]
-
-                if len(closes) < 20:
-                    continue
-
-                df = pd.DataFrame({
-                    "open": closes,
-                    "close": closes,
-                    "high": highs,
-                    "low": lows,
-                    "volume": volumes
-                })
-
-                # ✅ prepara solo ultime 300 candele lato server
-                candles_data = [
-                    {"t": int(time.time()), "o": float(o), "h": float(h),
-                     "l": float(l), "c": float(c), "v": float(v)}
-                    for o, h, l, c, v in zip(
-                        closes[-300:], highs[-300:], lows[-300:], closes[-300:], volumes[-300:]
-                    )
-                ]
-                save_candles(symbol.upper(), candles_data)
-
-                df = compute_features(df)
-                if df.empty:
-                    continue
-
-                for col in FEATURE_COLUMNS:
-                    if col not in df.columns:
-                        df[col] = 0
-
-                X = df[FEATURE_COLUMNS].iloc[[-1]].fillna(0)
-
-                model = models.get(symbol.upper())
-                if not model:
-                    continue
-
                 try:
-                    proba = model.predict_proba(X)[0]
-                    pred = int(np.argmax(proba))
+                    # ✅ AGGIUNGI TIMEOUT E HEARTBEAT
+                    msg = await asyncio.wait_for(stream.recv(), timeout=30.0)
+                    
+                    # Invia heartbeat ogni 15 secondi
+                    current_time = time.time()
+                    if current_time - last_heartbeat > 15:
+                        try:
+                            await websocket.send_json({
+                                "heartbeat": True,
+                                "t": int(current_time),
+                                "symbol": symbol_upper
+                            })
+                            last_heartbeat = current_time
+                            print(f"💓 Heartbeat inviato per {symbol_upper}")
+                        except:
+                            break
+                    
+                    k = msg["k"]
+                    print(f"📡 Dati ricevuti per {symbol_upper}: {k['c']} (chiuso: {k['x']})")
+                    
+                    closes.append(float(k["c"]))
+                    highs.append(float(k["h"]))
+                    lows.append(float(k["l"]))
+                    volumes.append(float(k["v"]))
+                    
+                    # Mantieni solo ultimi 100 punti per performance
+                    closes, highs, lows, volumes = closes[-100:], highs[-100:], lows[-100:], volumes[-100:]
 
-                    labels = ["Strong SELL", "Weak SELL", "HOLD", "Weak BUY", "Strong BUY"]
-                    signal = labels[pred]
-                    confidence = float(proba[pred])
-                    price = float(closes[-1])
-                    ts_now = int(time.time())
+                    if len(closes) < 20:
+                        print(f"⏳ Accumulando dati: {len(closes)}/20")
+                        continue
 
-                    probs_dict = {labels[i]: round(float(p), 3) for i, p in enumerate(proba)}
+                    # ✅ PREPARAZIONE DATI
+                    df = pd.DataFrame({
+                        "open": closes, "close": closes, "high": highs, 
+                        "low": lows, "volume": volumes
+                    })
 
-                    # 💾 simulazione ordini con limite memoria
-                    action = None
-                    if ("BUY" in signal or "SELL" in signal) and confidence > 0.55:
-                        order_id += 1
-                        action = "BUY" if "BUY" in signal else "SELL"
-                        order = {
-                            "id": order_id,
-                            "t": ts_now,
-                            "symbol": symbol.upper(),
-                            "price": price,
-                            "signal": signal,
-                            "confidence": round(confidence, 3),
-                            "side": action
-                        }
-                        orders.append(order)
-                        orders[:] = orders[-200:]  # ✅ max 200 ordini lato server
-                        save_orders()
-                        print(f"💾 Ordine simulato: {order}")
+                    # ✅ CALCOLO FEATURES
+                    try:
+                        df = compute_features(df)
+                        if df.empty:
+                            print("⚠️  DataFrame vuoto dopo compute_features")
+                            continue
 
-                    last_row = df.iloc[-1]
+                        # ✅ ASSICURA TUTTE LE COLONNE
+                        for col in FEATURE_COLUMNS:
+                            if col not in df.columns:
+                                df[col] = 0.0
+                                print(f"⚠️  Colonna {col} mancante, impostata a 0")
 
-                    # 🔹 Calcolo MACD con Pandas
-                    last_macd, last_signal, last_hist = compute_macd(df["close"].values)
+                        X = df[FEATURE_COLUMNS].iloc[[-1]].fillna(0)
 
-                    # ✅ invia solo l’ultimo segnale
+                        # ✅ PREDIZIONE
+                        try:
+                            proba = model.predict_proba(X)[0]
+                            pred = int(np.argmax(proba))
+
+                            labels = ["Strong SELL", "Weak SELL", "HOLD", "Weak BUY", "Strong BUY"]
+                            signal = labels[pred]
+                            confidence = float(proba[pred])
+                            price = float(closes[-1])
+                            ts_now = int(time.time())
+
+                            probs_dict = {labels[i]: round(float(p), 3) for i, p in enumerate(proba)}
+
+                            # ✅ SIMULAZIONE ORDINI
+                            action = None
+                            if ("BUY" in signal or "SELL" in signal) and confidence > 0.55:
+                                order_id += 1
+                                action = "BUY" if "BUY" in signal else "SELL"
+                                order = {
+                                    "id": order_id,
+                                    "t": ts_now,
+                                    "symbol": symbol_upper,
+                                    "price": price,
+                                    "signal": signal,
+                                    "confidence": round(confidence, 3),
+                                    "side": action
+                                }
+                                orders.append(order)
+                                orders[:] = orders[-200:]
+                                save_orders()
+                                print(f"💾 Ordine simulato: {order}")
+
+                            last_row = df.iloc[-1]
+
+                            # ✅ CALCOLO MACD
+                            last_macd, last_signal, last_hist = compute_macd(df["close"].values)
+
+                            # ✅ INVIO DATI AL CLIENT
+                            try:
+                                payload = {
+                                    "symbol": symbol_upper,
+                                    "close": price,
+                                    "ma5": float(last_row.get("ma5", 0)),
+                                    "ma20": float(last_row.get("ma20", 0)),
+                                    "rsi": float(last_row.get("rsi", 50)),
+                                    "macd": {
+                                        "macd": last_macd,
+                                        "signal": last_signal,
+                                        "hist": last_hist
+                                    },
+                                    "signal": signal,
+                                    "confidence": round(confidence, 3),
+                                    "probs": probs_dict,
+                                    "action": action,
+                                    "t": ts_now
+                                }
+                                
+                                await websocket.send_json(payload)
+                                print(f"📤 Inviati dati a client: {payload['signal']} ({confidence})")
+
+                            except WebSocketDisconnect:
+                                print(f"🔌 Client disconnesso durante l'invio")
+                                break
+                            except Exception as e:
+                                print(f"⚠️  Errore invio WebSocket: {e}")
+                                continue
+
+                        except Exception as e:
+                            print(f"❌ Errore predizione: {e}")
+                            continue
+
+                    except Exception as e:
+                        print(f"❌ Errore elaborazione features: {e}")
+                        continue
+
+                except asyncio.TimeoutError:
+                    print(f"⏰ Timeout ricezione dati per {symbol_upper}, invio heartbeat")
                     try:
                         await websocket.send_json({
-                            "symbol": symbol.upper(),
-                            "close": price,
-                            "ma5": float(last_row["ma5"]),
-                            "ma20": float(last_row["ma20"]),
-                            "rsi": float(last_row["rsi"]),
-                            "macd": {
-                                "macd": last_macd,
-                                "signal": last_signal,
-                                "hist": last_hist
-                            },
-                            "signal": signal,
-                            "confidence": round(confidence, 3),
-                            "probs": probs_dict,
-                            "action": action,
-                            "t": ts_now
+                            "heartbeat": True,
+                            "t": int(time.time()),
+                            "symbol": symbol_upper
                         })
-                    except Exception as e:
-                        print(f"⚠️ WS chiuso, stop invio signals: {e}")
-                        return
-
+                        last_heartbeat = time.time()
+                    except:
+                        print(f"❌ Errore invio heartbeat, probabilmente client disconnesso")
+                        break
                 except Exception as e:
-                    print(f"❌ Errore predizione: {e}")
-                    continue
+                    print(f"❌ Errore ricezione dati: {e}")
+                    break
 
     except WebSocketDisconnect:
-        print(f"🔌 Client disconnesso da /ws/signals ({symbol.upper()})")
+        print(f"🔌 Client disconnesso da /ws/signals ({symbol_upper})")
+    except Exception as e:
+        print(f"❌ Errore generale WebSocket: {e}")
     finally:
-        await client.close_connection()
+        try:
+            await client.close_connection()
+            print(f"🔚 Connessione chiusa per {symbol_upper}")
+        except:
+            pass
 
 
 # ------------------ Endpoint REST ordini ------------------

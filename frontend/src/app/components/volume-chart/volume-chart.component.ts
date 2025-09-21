@@ -1,8 +1,25 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NgApexchartsModule, ChartComponent, ApexAxisChartSeries, ApexChart, ApexXAxis, ApexYAxis } from 'ng-apexcharts';
-import { CandleService, Candle } from '../../services/candle.service';
+import {
+  NgApexchartsModule,
+  ApexAxisChartSeries,
+  ApexChart,
+  ApexXAxis,
+  ApexYAxis,
+  ApexTitleSubtitle,
+  ApexTooltip
+} from 'ng-apexcharts';
+import { CandleService } from '../../services/candle.service';
 import { Subscription } from 'rxjs';
+
+export type ChartOptions = {
+  series: ApexAxisChartSeries;
+  chart: ApexChart;
+  xaxis: ApexXAxis;
+  yaxis: ApexYAxis;
+  title: ApexTitleSubtitle;
+  tooltip: ApexTooltip;
+};
 
 @Component({
   selector: 'app-volume-chart',
@@ -11,63 +28,138 @@ import { Subscription } from 'rxjs';
   templateUrl: './volume-chart.component.html',
   styleUrls: ['./volume-chart.component.scss']
 })
-export class VolumeChartComponent implements OnInit, OnDestroy, OnChanges {
-  @ViewChild('chart') chart!: ChartComponent;
+export class VolumeChartComponent implements OnInit, OnDestroy {
   @Input() symbol: string = 'BTCUSDT';
+  private historicalSubscription!: Subscription;
+  private wsSubscription!: Subscription;
 
-  private subscription?: Subscription;
-  candles: Candle[] = [];
-
-  chartOptions: {
-    series: ApexAxisChartSeries;
-    chart: ApexChart;
-    xaxis: ApexXAxis;
-    yaxis: ApexYAxis;
-  } = {
-    series: [{ name: 'Volume', data: [] }],
-    chart: { type: 'bar', height: 200, background: '#1e222d' },
-    xaxis: { type: 'datetime', labels: { style: { colors: '#ccc' } } },
-    yaxis: { labels: { style: { colors: '#ccc' } } }
+  public chartOptions: ChartOptions = {
+    series: [
+      {
+        name: 'Volume',
+        data: []
+      }
+    ],
+    chart: {
+      type: 'bar',
+      height: 300,
+      background: '#1a1d29',
+      foreColor: '#e0e0e0',
+      animations: { enabled: false },
+      toolbar: { show: true }
+    },
+    xaxis: {
+      type: 'datetime',
+      labels: { style: { colors: '#9ca3af' } }
+    },
+    yaxis: {
+      labels: { style: { colors: '#9ca3af' } },
+      title: { text: 'Volume', style: { color: '#9ca3af' } }
+    },
+    title: {
+      text: 'Volume',
+      align: 'center',
+      style: { color: '#e0e0e0' }
+    },
+    tooltip: {
+      theme: 'dark',
+      x: { format: 'dd MMM yyyy HH:mm:ss' }
+    }
   };
 
   constructor(private candleService: CandleService) {}
 
   ngOnInit() {
-    this.connectWS();
-  }
-
-  ngOnChanges(changes: SimpleChanges) {
-    if (changes['symbol'] && !changes['symbol'].firstChange) {
-      this.disconnect();
-      this.candles = [];
-      this.connectWS();
-    }
-  }
-
-  private connectWS() {
-    this.subscription = this.candleService.connect(this.symbol).subscribe(c => {
-      this.candles.push(c);
-      if (this.candles.length > 100) this.candles.shift();
-      this.updateChart();
-    });
-  }
-
-  private updateChart() {
-    const seriesData = this.candles.map(c => ({
-      x: new Date(c.t * 1000),
-      y: c.v
-    }));
-    if (this.chart) {
-      this.chart.updateSeries([{ name: 'Volume', data: seriesData }], false);
-    }
-  }
-
-  private disconnect() {
-    if (this.subscription) this.subscription.unsubscribe();
-    this.candleService.disconnect();
+    this.loadData();
   }
 
   ngOnDestroy() {
     this.disconnect();
+  }
+
+  private loadData() {
+    // 1. PRIMA carica dati storici
+    this.historicalSubscription = this.candleService.getHistoricalData(this.symbol, 30).subscribe({
+      next: (historicalData: any[]) => {
+        console.log(`✅ Volume - Ricevute ${historicalData.length} candele storiche`);
+        
+        // Estrai i volumi dai dati storici
+        const volumeData = historicalData.map(item => ({
+          x: new Date(item.t),
+          y: typeof item.v === 'number' ? item.v : parseFloat(item.v)
+        }));
+        
+        this.updateChart(volumeData);
+        
+        // 2. POI connetti al WebSocket per dati real-time
+        this.connectWebSocket();
+      },
+      error: (err) => {
+        console.error('❌ Volume - Errore dati storici:', err);
+        this.connectWebSocket(); // Prova comunque il WebSocket
+      }
+    });
+  }
+
+  private connectWebSocket() {
+    try {
+      const wsSubject = this.candleService.createWebSocket(this.symbol);
+      
+      this.wsSubscription = wsSubject.subscribe({
+        next: (candle: any) => {
+          this.handleNewCandle(candle);
+        },
+        error: (err) => {
+          console.warn('⚠️ Volume - WebSocket non disponibile:', err);
+        }
+      });
+    } catch (error) {
+      console.warn('⚠️ Volume - Errore connessione WebSocket:', error);
+    }
+  }
+
+  private handleNewCandle(candleData: any) {
+    const volume = typeof candleData.v === 'number' ? candleData.v : parseFloat(candleData.v);
+    const timestamp = new Date(candleData.t);
+    
+    // Aggiorna il chart con il nuovo volume
+    const currentData = this.chartOptions.series[0].data as any[];
+    const newData = [...currentData];
+    
+    // Cerca se esiste già un dato per questo timestamp
+    const existingIndex = newData.findIndex(item => item.x.getTime() === timestamp.getTime());
+    
+    if (existingIndex !== -1) {
+      newData[existingIndex] = { x: timestamp, y: volume };
+    } else {
+      newData.push({ x: timestamp, y: volume });
+      
+      // Mantieni massimo 50 dati
+      if (newData.length > 50) {
+        newData.shift();
+      }
+    }
+    
+    this.updateChart(newData);
+  }
+
+  private updateChart(data: any[]) {
+    this.chartOptions = {
+      ...this.chartOptions,
+      series: [{ name: 'Volume', data: data }],
+      title: {
+        ...this.chartOptions.title,
+        text: `Volume ${this.symbol} - ${data.length} dati`
+      }
+    };
+  }
+
+  private disconnect() {
+    if (this.historicalSubscription) {
+      this.historicalSubscription.unsubscribe();
+    }
+    if (this.wsSubscription) {
+      this.wsSubscription.unsubscribe();
+    }
   }
 }

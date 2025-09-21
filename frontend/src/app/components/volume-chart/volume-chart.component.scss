@@ -1,9 +1,5 @@
-:host {
-  display: block;
-  height: 100%;
-}
-
-apx-chart {
-  width: 100%;
-  height: 100%;
+.volume-chart-container {
+  background: #1a1d29;
+  border-radius: 8px;
+  min-height: 350px;
 }

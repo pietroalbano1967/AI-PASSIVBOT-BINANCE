@@ -1,7 +1,28 @@
-<apx-chart
-  [series]="series"
-  [chart]="chart"
-  [xaxis]="xaxis"
-  [title]="title"
-  [yaxis]="{ labels: { style: { colors: '#9ca3af' } } }">
-</apx-chart>
+<div class="chart-container">
+  <div *ngIf="loading" class="loading">
+    <div class="spinner"></div>
+    <span>Connessione a {{symbol}}...</span>
+  </div>
+  
+  <div *ngIf="errorMessage" class="error-message">
+    {{errorMessage}}
+    <button (click)="connectToSignals()" class="retry-btn">Riprova</button>
+  </div>
+
+  <div *ngIf="!loading && !hasData && !errorMessage" class="no-data">
+    <p>In attesa di dati per {{symbol}}</p>
+  </div>
+
+  <apx-chart
+    *ngIf="!loading && hasData"
+    [series]="chartOptions.series"
+    [chart]="chartOptions.chart"
+    [xaxis]="chartOptions.xaxis"
+    [yaxis]="chartOptions.yaxis"
+    [stroke]="chartOptions.stroke"
+    [title]="chartOptions.title"
+    [tooltip]="chartOptions.tooltip"
+    [markers]="chartOptions.markers"
+    [grid]="chartOptions.grid">
+  </apx-chart>
+</div>

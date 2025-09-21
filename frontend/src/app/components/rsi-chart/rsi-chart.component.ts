@@ -40,6 +40,8 @@ export class RsiChartComponent implements OnInit, OnDestroy, OnChanges {
   public chartOptions: ChartOptions;
   public hasData: boolean = false;
   public loading: boolean = true;
+  public errorMessage: string = '';
+  public isConnected: boolean = false;
 
   constructor(
     private signalsService: SignalsService,
@@ -60,6 +62,7 @@ export class RsiChartComponent implements OnInit, OnDestroy, OnChanges {
       this.chartOptions = this.createChartOptions();
       this.hasData = false;
       this.loading = true;
+      this.errorMessage = '';
       this.connectToSignals();
     }
   }
@@ -69,19 +72,36 @@ export class RsiChartComponent implements OnInit, OnDestroy, OnChanges {
     console.log('📊 RSI Chart destroyed');
   }
 
-  private connectToSignals() {
+  public connectToSignals() {
+    console.log(`🔗 Connecting to signals for ${this.symbol}`);
+    
+    this.loading = true;
+    this.errorMessage = '';
+
     this.subscription = this.signalsService.connect(this.symbol).subscribe({
       next: (data: SignalData) => {
+        this.isConnected = true;
+        
+        if (data.signal === 'CONNESSIONE STABILITA') {
+          console.log('✅ Connessione WebSocket stabilita');
+          return; // Non processare il messaggio di connessione
+        }
+        
+        console.log('📡 RSI Data received:', data);
         this.addRSI(data);
       },
       error: (err) => {
-        console.error('❌ RSI Chart error:', err);
+        console.error('❌ RSI Chart connection error:', err);
+        this.isConnected = false;
+        this.errorMessage = 'Errore di connessione al servizio segnali';
         this.loading = false;
         this.cdr.detectChanges();
       },
       complete: () => {
-        console.log('✅ RSI Chart completed');
+        console.log('✅ RSI Chart connection completed');
+        this.isConnected = false;
         this.loading = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -113,10 +133,7 @@ export class RsiChartComponent implements OnInit, OnDestroy, OnChanges {
       xaxis: {
         type: 'datetime',
         labels: { 
-          style: { colors: '#9ca3af' },
-          datetimeFormatter: {
-            hour: 'HH:mm:ss'
-          }
+          style: { colors: '#9ca3af' }
         },
         axisBorder: { color: '#2a2e39' },
         axisTicks: { color: '#2a2e39' }
@@ -155,8 +172,6 @@ export class RsiChartComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   private addRSI(data: SignalData) {
-    console.log('📊 RSI Data received:', data);
-    
     if (data.rsi === undefined || data.rsi === null) {
       console.warn('⚠️ RSI data missing from signal');
       return;
@@ -164,10 +179,9 @@ export class RsiChartComponent implements OnInit, OnDestroy, OnChanges {
 
     const point = {
       x: new Date(data.t * 1000),
-      y: Math.round(data.rsi * 100) / 100 // Arrotonda a 2 decimali
+      y: Math.round(data.rsi * 100) / 100
     };
 
-    // Aggiorna la serie
     const currentData = this.chartOptions.series[0].data as any[];
     const newData = [...currentData, point];
     
@@ -192,19 +206,12 @@ export class RsiChartComponent implements OnInit, OnDestroy, OnChanges {
     this.loading = false;
     this.cdr.detectChanges();
   }
-  // Aggiungi al componente RSIChartComponent
-private addTestData() {
-  // Dati di test
-  const testData: SignalData[] = [
-    { symbol: this.symbol, close: 50000, ma5: 49000, ma20: 48000, rsi: 45, signal: 'HOLD', confidence: 0.6, probs: {}, action: null, t: Math.floor(Date.now() / 1000) - 60 },
-    { symbol: this.symbol, close: 50100, ma5: 49100, ma20: 48100, rsi: 52, signal: 'HOLD', confidence: 0.6, probs: {}, action: null, t: Math.floor(Date.now() / 1000) - 30 },
-    { symbol: this.symbol, close: 50200, ma5: 49200, ma20: 48200, rsi: 58, signal: 'WEAK BUY', confidence: 0.55, probs: {}, action: null, t: Math.floor(Date.now() / 1000) }
-  ];
-
-  testData.forEach(data => this.addRSI(data));
+  // Aggiungi questo metodo pubblico
+retryConnection() {
+  this.errorMessage = '';
+  this.loading = true;
+  this.disconnect();
+  this.connectToSignals();
 }
-
-
-
-  }
-
+  // Rimuovi completamente il metodo addTestData()
+}

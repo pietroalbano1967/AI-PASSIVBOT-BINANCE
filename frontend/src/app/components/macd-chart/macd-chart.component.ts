@@ -1,8 +1,33 @@
-import { Component, OnInit, OnDestroy, Input } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, ChangeDetectorRef, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NgApexchartsModule, ApexAxisChartSeries, ApexChart, ApexXAxis, ApexTitleSubtitle } from 'ng-apexcharts';
-import { SignalsService, SignalData } from '../../services/signals.service';
+import {
+  NgApexchartsModule,
+  ApexAxisChartSeries,
+  ApexChart,
+  ApexXAxis,
+  ApexYAxis,
+  ApexStroke,
+  ApexTitleSubtitle,
+  ApexTooltip,
+  ApexMarkers,
+  ApexGrid,
+  ApexLegend
+} from 'ng-apexcharts';
 import { Subscription } from 'rxjs';
+import { SignalsService, SignalData } from '../../services/signals.service';
+
+export type ChartOptions = {
+  series: ApexAxisChartSeries;
+  chart: ApexChart;
+  xaxis: ApexXAxis;
+  yaxis: ApexYAxis;
+  stroke: ApexStroke;
+  title: ApexTitleSubtitle;
+  tooltip: ApexTooltip;
+  markers: ApexMarkers;
+  grid: ApexGrid;
+  legend: ApexLegend;
+};
 
 @Component({
   selector: 'app-macd-chart',
@@ -11,55 +36,205 @@ import { Subscription } from 'rxjs';
   templateUrl: './macd-chart.component.html',
   styleUrls: ['./macd-chart.component.scss']
 })
-export class MacdChartComponent implements OnInit, OnDestroy {
+export class MacdChartComponent implements OnInit, OnDestroy, OnChanges {
   @Input() symbol: string = 'BTCUSDT';
   private subscription?: Subscription;
+  public chartOptions: ChartOptions;
+  public hasData: boolean = false;
+  public loading: boolean = true;
+  public errorMessage: string = '';
 
-  series: ApexAxisChartSeries = [
-    { name: 'MACD', data: [] as { x: Date; y: number }[] },
-    { name: 'Signal', data: [] as { x: Date; y: number }[] },
-    { name: 'Histogram', data: [] as { x: Date; y: number }[] }
-  ];
-  chart: ApexChart = { type: 'line', height: 250 };
-  xaxis: ApexXAxis = { type: 'datetime' };
-  title: ApexTitleSubtitle = { text: 'MACD', align: 'center' };
-
-  private macdData: { x: Date; y: number }[] = [];
-  private signalData: { x: Date; y: number }[] = [];
-  private histData: { x: Date; y: number }[] = [];
-
-  constructor(private signals: SignalsService) {}
+  constructor(
+    private signalsService: SignalsService,
+    private cdr: ChangeDetectorRef
+  ) {
+    this.chartOptions = this.createChartOptions();
+  }
 
   ngOnInit() {
-    this.subscription = this.signals.connect(this.symbol).subscribe((data: SignalData) => {
-      if (data.macd) {
-        const point = { x: new Date(data.t * 1000), y: data.macd.macd };
-        const sig = { x: new Date(data.t * 1000), y: data.macd.signal };
-        const hist = { x: new Date(data.t * 1000), y: data.macd.hist };
+    console.log('📊 MACD Chart initialized for:', this.symbol);
+    this.connectToSignals();
+  }
 
-        this.macdData.push(point);
-        this.signalData.push(sig);
-        this.histData.push(hist);
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['symbol'] && !changes['symbol'].firstChange) {
+      console.log('🔄 Symbol changed to:', this.symbol);
+      this.disconnect();
+      this.chartOptions = this.createChartOptions();
+      this.hasData = false;
+      this.loading = true;
+      this.errorMessage = '';
+      this.connectToSignals();
+    }
+  }
 
-        if (this.macdData.length > 100) {
-          this.macdData.shift();
-          this.signalData.shift();
-          this.histData.shift();
-        }
+  ngOnDestroy() {
+    this.disconnect();
+    console.log('📊 MACD Chart destroyed');
+  }
 
-        this.series = [
-          { name: 'MACD', data: [...this.macdData] },
-          { name: 'Signal', data: [...this.signalData] },
-          { name: 'Histogram', data: [...this.histData] }
-        ];
+  public connectToSignals() {
+    console.log(`🔗 Connecting to signals for ${this.symbol}`);
+    
+    this.subscription = this.signalsService.connect(this.symbol).subscribe({
+      next: (data: SignalData) => {
+        console.log('📡 MACD Data received:', data);
+        this.addMACDData(data);
+      },
+      error: (err) => {
+        console.error('❌ MACD Chart connection error:', err);
+        this.errorMessage = 'Errore di connessione al servizio segnali';
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      complete: () => {
+        console.log('✅ MACD Chart connection completed');
+        this.loading = false;
+        this.cdr.detectChanges();
       }
     });
   }
 
-  ngOnDestroy() {
+  private disconnect() {
     if (this.subscription) {
       this.subscription.unsubscribe();
-      this.signals.disconnect();
     }
+    this.signalsService.disconnect();
   }
+
+  private createChartOptions(): ChartOptions {
+    return {
+      series: [
+        {
+          name: 'MACD Line',
+          type: 'line',
+          data: []
+        },
+        {
+          name: 'Signal Line',
+          type: 'line',
+          data: []
+        },
+        {
+          name: 'Histogram',
+          type: 'column',
+          data: []
+        }
+      ],
+      chart: {
+        type: 'line',
+        height: 350,
+        background: '#1a1d29',
+        foreColor: '#e0e0e0',
+        animations: { enabled: false },
+        toolbar: { show: true },
+        zoom: { enabled: false }
+      },
+      xaxis: {
+        type: 'datetime',
+        labels: { 
+          style: { colors: '#9ca3af' }
+        },
+        axisBorder: { color: '#2a2e39' },
+        axisTicks: { color: '#2a2e39' }
+      },
+      yaxis: {
+        labels: { style: { colors: '#9ca3af' } },
+        title: { text: 'MACD Value', style: { color: '#9ca3af' } }
+      },
+      stroke: {
+        curve: 'smooth',
+        width: 2,
+        colors: ['#00E396', '#FEB019', '#FF4560']
+      },
+      title: {
+        text: `MACD (12,26,9) - ${this.symbol}`,
+        align: 'center',
+        style: { color: '#e0e0e0', fontSize: '16px', fontWeight: 'bold' }
+      },
+      tooltip: {
+        theme: 'dark',
+        x: { 
+          format: 'dd MMM yyyy HH:mm:ss'
+        }
+      },
+      markers: {
+        size: 0,
+        hover: { size: 5 }
+      },
+      grid: {
+        borderColor: '#2a2e39',
+        strokeDashArray: 4
+      },
+      legend: {
+        labels: {
+          colors: '#e0e0e0'
+        }
+      }
+    };
+  }
+
+  private addMACDData(data: SignalData) {
+    console.log('📊 MACD Data received:', data);
+    
+    if (!data.macd) {
+      console.warn('⚠️ MACD data missing from signal');
+      return;
+    }
+
+    const timestamp = new Date(data.t * 1000);
+
+    // Aggiorna le serie
+    const macdLineData = [...(this.chartOptions.series[0].data as any[])];
+    const signalLineData = [...(this.chartOptions.series[1].data as any[])];
+    const histogramData = [...(this.chartOptions.series[2].data as any[])];
+
+    macdLineData.push({ x: timestamp, y: data.macd.macd });
+    signalLineData.push({ x: timestamp, y: data.macd.signal });
+    histogramData.push({ x: timestamp, y: data.macd.hist });
+
+    // Mantieni solo gli ultimi 50 punti
+    if (macdLineData.length > 50) {
+      macdLineData.shift();
+      signalLineData.shift();
+      histogramData.shift();
+    }
+
+    this.chartOptions = {
+      ...this.chartOptions,
+      series: [
+        {
+          name: 'MACD Line',
+          type: 'line',
+          data: macdLineData
+        },
+        {
+          name: 'Signal Line',
+          type: 'line',
+          data: signalLineData
+        },
+        {
+          name: 'Histogram',
+          type: 'column',
+          data: histogramData
+        }
+      ],
+      title: {
+        ...this.chartOptions.title,
+        text: `MACD (12,26,9) - ${this.symbol} - MACD: ${data.macd.macd.toFixed(4)}`
+      }
+    };
+
+    this.hasData = macdLineData.length > 0;
+    this.loading = false;
+    this.cdr.detectChanges();
+  }
+   // Aggiungi questo metodo pubblico
+retryConnection() {
+  this.errorMessage = '';
+  this.loading = true;
+  this.disconnect();
+  this.connectToSignals();
+}
+  // Rimuovi completamente il metodo addTestData()
 }

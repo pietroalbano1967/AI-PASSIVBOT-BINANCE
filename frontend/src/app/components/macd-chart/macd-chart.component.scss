@@ -1,9 +1,65 @@
-:host {
-  display: block;
-  height: 100%;
+.macd-chart-container {
+  background: #1a1d29;
+  border-radius: 8px;
+  min-height: 400px;
+  position: relative;
 }
 
-apx-chart {
-  width: 100%;
-  height: 100%;
+.loading-container, .no-data-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #3b82f6;
+  border-top: 4px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+// Stili personalizzati per il MACD
+::ng-deep .apexcharts-gridline {
+  stroke: #2a2e39 !important;
+}
+
+::ng-deep .apexcharts-tooltip {
+  background: #2d3748 !important;
+  border: 1px solid #4a5568 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+::ng-deep .apexcharts-tooltip-title {
+  background: #4a5568 !important;
+  border-bottom: 1px solid #718096 !important;
+  font-weight: bold !important;
+}
+
+::ng-deep .apexcharts-legend {
+  color: #e0e0e0 !important;
+  position: relative !important;
+  top: -10px !important;
+}
+
+// Colori per le diverse serie
+::ng-deep .apexcharts-series[seriesName="MACD Line"] path {
+  stroke: #00E396 !important;
+}
+
+::ng-deep .apexcharts-series[seriesName="Signal Line"] path {
+  stroke: #FEB019 !important;
+}
+
+::ng-deep .apexcharts-series[seriesName="Histogram"] rect {
+  fill: #FF4560 !important;
 }
