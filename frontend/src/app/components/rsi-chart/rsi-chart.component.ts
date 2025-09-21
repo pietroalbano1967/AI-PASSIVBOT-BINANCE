@@ -1,7 +1,7 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NgApexchartsModule, ChartComponent, ApexAxisChartSeries, ApexChart, ApexXAxis, ApexYAxis } from 'ng-apexcharts';
-import { WsService } from '../../services/ws.service';
+import { NgApexchartsModule, ApexAxisChartSeries, ApexChart, ApexXAxis, ApexTitleSubtitle } from 'ng-apexcharts';
+import { SignalsService, SignalData } from '../../services/signals.service';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -11,59 +11,33 @@ import { Subscription } from 'rxjs';
   templateUrl: './rsi-chart.component.html',
   styleUrls: ['./rsi-chart.component.scss']
 })
-export class RsiChartComponent implements OnInit, OnDestroy, OnChanges {
-  @ViewChild('chart') chart!: ChartComponent;
+export class RsiChartComponent implements OnInit, OnDestroy {
   @Input() symbol: string = 'BTCUSDT';
-
   private subscription?: Subscription;
-  rsiData: any[] = [];
 
-  chartOptions: {
-    series: ApexAxisChartSeries;
-    chart: ApexChart;
-    xaxis: ApexXAxis;
-    yaxis: ApexYAxis;
-  } = {
-    series: [{ name: 'RSI', data: [] }],
-    chart: { type: 'line', height: 200, background: '#1e222d' },
-    xaxis: { type: 'datetime', labels: { style: { colors: '#ccc' } } },
-    yaxis: { min: 0, max: 100, labels: { style: { colors: '#ccc' } } }
-  };
+  series: ApexAxisChartSeries = [{ name: 'RSI', data: [] as { x: Date; y: number }[] }];
+  chart: ApexChart = { type: 'line', height: 250 };
+  xaxis: ApexXAxis = { type: 'datetime' };
+  title: ApexTitleSubtitle = { text: 'RSI (14)', align: 'center' };
 
-  constructor(private ws: WsService) {}
+  private rsiData: { x: Date; y: number }[] = [];
+
+  constructor(private signals: SignalsService) {}
 
   ngOnInit() {
-    this.connectWS();
-  }
-
-  ngOnChanges(changes: SimpleChanges) {
-    if (changes['symbol'] && !changes['symbol'].firstChange) {
-      this.disconnect();
-      this.rsiData = [];
-      this.connectWS();
-    }
-  }
-
-  private connectWS() {
-    this.subscription = this.ws
-      .connect(`ws://localhost:8000/ws/signals?symbol=${this.symbol.toLowerCase()}`)
-      .subscribe((data: any) => {
-        if (data.rsi) {
-          this.rsiData.push({ x: new Date(data.t * 1000), y: data.rsi });
-          if (this.rsiData.length > 100) this.rsiData.shift();
-          if (this.chart) {
-            this.chart.updateSeries([{ name: 'RSI', data: this.rsiData }], false);
-          }
-        }
-      });
-  }
-
-  private disconnect() {
-    if (this.subscription) this.subscription.unsubscribe();
-    this.ws.disconnect();
+    this.subscription = this.signals.connect(this.symbol).subscribe((data: SignalData) => {
+      if (data.rsi !== undefined && data.rsi !== null) {
+        this.rsiData.push({ x: new Date(data.t * 1000), y: data.rsi });
+        if (this.rsiData.length > 100) this.rsiData.shift();
+        this.series = [{ name: 'RSI', data: [...this.rsiData] }];
+      }
+    });
   }
 
   ngOnDestroy() {
-    this.disconnect();
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+      this.signals.disconnect();
+    }
   }
 }

@@ -1,7 +1,7 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NgApexchartsModule, ChartComponent, ApexAxisChartSeries, ApexChart, ApexXAxis, ApexYAxis } from 'ng-apexcharts';
-import { WsService } from '../../services/ws.service';
+import { NgApexchartsModule, ApexAxisChartSeries, ApexChart, ApexXAxis, ApexTitleSubtitle } from 'ng-apexcharts';
+import { SignalsService, SignalData } from '../../services/signals.service';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -11,80 +11,55 @@ import { Subscription } from 'rxjs';
   templateUrl: './macd-chart.component.html',
   styleUrls: ['./macd-chart.component.scss']
 })
-export class MacdChartComponent implements OnInit, OnDestroy, OnChanges {
-  @ViewChild('chart') chart!: ChartComponent;
+export class MacdChartComponent implements OnInit, OnDestroy {
   @Input() symbol: string = 'BTCUSDT';
-
   private subscription?: Subscription;
-  macdLine: any[] = [];
-  signalLine: any[] = [];
-  histogram: any[] = [];
 
-  chartOptions: {
-    series: ApexAxisChartSeries;
-    chart: ApexChart;
-    xaxis: ApexXAxis;
-    yaxis: ApexYAxis;
-  } = {
-    series: [
-      { name: 'MACD', data: [] },
-      { name: 'Signal', data: [] },
-      { name: 'Histogram', data: [] }
-    ],
-    chart: { type: 'line', height: 200, background: '#1e222d' },
-    xaxis: { type: 'datetime', labels: { style: { colors: '#ccc' } } },
-    yaxis: { labels: { style: { colors: '#ccc' } } }
-  };
+  series: ApexAxisChartSeries = [
+    { name: 'MACD', data: [] as { x: Date; y: number }[] },
+    { name: 'Signal', data: [] as { x: Date; y: number }[] },
+    { name: 'Histogram', data: [] as { x: Date; y: number }[] }
+  ];
+  chart: ApexChart = { type: 'line', height: 250 };
+  xaxis: ApexXAxis = { type: 'datetime' };
+  title: ApexTitleSubtitle = { text: 'MACD', align: 'center' };
 
-  constructor(private ws: WsService) {}
+  private macdData: { x: Date; y: number }[] = [];
+  private signalData: { x: Date; y: number }[] = [];
+  private histData: { x: Date; y: number }[] = [];
+
+  constructor(private signals: SignalsService) {}
 
   ngOnInit() {
-    this.connectWS();
-  }
+    this.subscription = this.signals.connect(this.symbol).subscribe((data: SignalData) => {
+      if (data.macd) {
+        const point = { x: new Date(data.t * 1000), y: data.macd.macd };
+        const sig = { x: new Date(data.t * 1000), y: data.macd.signal };
+        const hist = { x: new Date(data.t * 1000), y: data.macd.hist };
 
-  ngOnChanges(changes: SimpleChanges) {
-    if (changes['symbol'] && !changes['symbol'].firstChange) {
-      this.disconnect();
-      this.macdLine = [];
-      this.signalLine = [];
-      this.histogram = [];
-      this.connectWS();
-    }
-  }
+        this.macdData.push(point);
+        this.signalData.push(sig);
+        this.histData.push(hist);
 
-  private connectWS() {
-    this.subscription = this.ws
-      .connect(`ws://localhost:8000/ws/signals?symbol=${this.symbol.toLowerCase()}`)
-      .subscribe((data: any) => {
-        if (data.macd) {
-          const ts = new Date(data.t * 1000);
-          this.macdLine.push({ x: ts, y: data.macd.macd });
-          this.signalLine.push({ x: ts, y: data.macd.signal });
-          this.histogram.push({ x: ts, y: data.macd.hist });
-
-          if (this.macdLine.length > 100) {
-            this.macdLine.shift();
-            this.signalLine.shift();
-            this.histogram.shift();
-          }
-
-          if (this.chart) {
-            this.chart.updateSeries([
-              { name: 'MACD', data: this.macdLine },
-              { name: 'Signal', data: this.signalLine },
-              { name: 'Histogram', data: this.histogram }
-            ], false);
-          }
+        if (this.macdData.length > 100) {
+          this.macdData.shift();
+          this.signalData.shift();
+          this.histData.shift();
         }
-      });
-  }
 
-  private disconnect() {
-    if (this.subscription) this.subscription.unsubscribe();
-    this.ws.disconnect();
+        this.series = [
+          { name: 'MACD', data: [...this.macdData] },
+          { name: 'Signal', data: [...this.signalData] },
+          { name: 'Histogram', data: [...this.histData] }
+        ];
+      }
+    });
   }
 
   ngOnDestroy() {
-    this.disconnect();
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+      this.signals.disconnect();
+    }
   }
 }
