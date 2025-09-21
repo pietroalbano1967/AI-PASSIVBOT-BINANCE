@@ -42,7 +42,7 @@ export class CandleChartComponent implements OnInit, OnChanges, OnDestroy {
     series: [{ data: [] }],
     chart: {
       type: 'candlestick',
-      height: 400,
+      height: 600,
       animations: { enabled: false }
     },
     xaxis: { type: 'datetime' },
