@@ -1,6 +1,8 @@
+// mini-ticker.component.ts
 import { Component, OnInit, OnDestroy, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TickerService, Ticker } from '../../services/ticker.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-mini-ticker',
@@ -11,42 +13,64 @@ import { TickerService, Ticker } from '../../services/ticker.service';
 })
 export class MiniTickerComponent implements OnInit, OnDestroy {
   tickers: Ticker[] = [];
-  private subscription: any;
+  private subscription?: Subscription;
 
-  @Output() symbolSelected = new EventEmitter<string>();  // 👈 nuovo
+  @Output() symbolSelected = new EventEmitter<string>();
 
   constructor(private tickerService: TickerService) {}
 
   ngOnInit() {
-    this.subscription = this.tickerService.connect().subscribe((t: Ticker) => {
-      const idx = this.tickers.findIndex(x => x.s === t.s);
-      if (idx >= 0) {
-        this.tickers[idx] = t;
-      } else {
-        this.tickers.push(t);
+    console.log('💹 MiniTickerComponent - INIT');
+    this.connectToTickers();
+  }
+
+  ngOnDestroy() {
+    console.log('💹 MiniTickerComponent - DESTROY');
+    this.disconnect();
+  }
+
+  private connectToTickers() {
+    this.subscription = this.tickerService.connect().subscribe({
+      next: (t: Ticker) => {
+        this.updateTicker(t);
+      },
+      error: (err) => {
+        console.error('❌ Errore tickers:', err);
       }
     });
   }
 
-  ngOnDestroy() {
-    this.tickerService.disconnect();
-    if (this.subscription) this.subscription.unsubscribe();
+  private updateTicker(t: Ticker) {
+    const idx = this.tickers.findIndex(x => x.s === t.s);
+    if (idx >= 0) {
+      this.tickers[idx] = t;
+    } else {
+      this.tickers.unshift(t);
+      // Massimo 15 tickers
+      if (this.tickers.length > 15) {
+        this.tickers.pop();
+      }
+    }
+  }
+
+  private disconnect() {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
   }
 
   getChangePercent(t: Ticker): number {
     const close = Number(t.c);
     const open = Number(t.o || t.c);
-    if (!open || isNaN(open)) return 0;
-    return ((close - open) / open) * 100;
+    return open && !isNaN(open) ? ((close - open) / open) * 100 : 0;
   }
 
   getChangeClass(t: Ticker): string {
     return this.getChangePercent(t) >= 0 ? 'positive' : 'negative';
   }
 
-  // 👇 quando clicchi su una card
   selectSymbol(symbol: string) {
-  console.log("🔘 Simbolo selezionato:", symbol);
-  this.symbolSelected.emit(symbol.toUpperCase());
-}
+    console.log("🔘 Simbolo selezionato:", symbol);
+    this.symbolSelected.emit(symbol.toUpperCase());
+  }
 }

@@ -23,7 +23,7 @@ export interface SignalData {
 @Injectable({ providedIn: 'root' })
 export class SignalsService {
   private ws: WebSocket | null = null;
-  private subject?: ReplaySubject<SignalData>;
+  private subject: ReplaySubject<SignalData> | null = null; // ✅ Inizializza come null
   private simulationEnabled = true;
   private isConnected = false;
   private reconnectAttempts = 0;
@@ -31,9 +31,14 @@ export class SignalsService {
 
   connect(symbol: string = 'BTCUSDT'): Observable<SignalData> {
     this.disconnect();
+    
     this.subject = new ReplaySubject<SignalData>(50);
-
     this.establishConnection(symbol);
+    
+    // ✅ Controllo di sicurezza per subject
+    if (!this.subject) {
+      throw new Error('Failed to create subject');
+    }
     
     return this.subject.asObservable().pipe(
       retryWhen(errors => 
@@ -52,7 +57,10 @@ export class SignalsService {
   private establishConnection(symbol: string) {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error('❌ Troppi tentativi di riconnessione falliti');
-      this.subject?.error('Max reconnection attempts reached');
+      // ✅ Controllo di sicurezza per subject
+      if (this.subject) {
+        this.subject.error('Max reconnection attempts reached');
+      }
       return;
     }
 
@@ -67,20 +75,22 @@ export class SignalsService {
         this.isConnected = true;
         this.reconnectAttempts = 0;
         
-        // Invia segnale di connessione riuscita
-        this.subject?.next({
-          symbol: symbol,
-          close: 0,
-          ma5: 0,
-          ma20: 0,
-          rsi: 50,
-          signal: 'CONNESSIONE STABILITA',
-          confidence: 1,
-          probs: { 'CONNECTED': 1 },
-          action: null,
-          t: Math.floor(Date.now() / 1000),
-          macd: { macd: 0, signal: 0, hist: 0 }
-        } as SignalData);
+        // ✅ Controllo di sicurezza per subject
+        if (this.subject) {
+          this.subject.next({
+            symbol: symbol,
+            close: 0,
+            ma5: 0,
+            ma20: 0,
+            rsi: 50,
+            signal: 'CONNESSIONE STABILITA',
+            confidence: 1,
+            probs: { 'CONNECTED': 1 },
+            action: null,
+            t: Math.floor(Date.now() / 1000),
+            macd: { macd: 0, signal: 0, hist: 0 }
+          } as SignalData);
+        }
       };
 
       this.ws.onmessage = (event) => {
@@ -92,7 +102,10 @@ export class SignalsService {
             data.action = null;
           }
           
-          this.subject?.next(data);
+          // ✅ Controllo di sicurezza per subject
+          if (this.subject) {
+            this.subject.next(data);
+          }
         } catch (err) {
           console.error("❌ Errore parsing signals:", err, event.data);
         }
@@ -107,7 +120,7 @@ export class SignalsService {
         console.log(`🔌 WebSocket chiuso: ${event.code} ${event.reason}`);
         this.isConnected = false;
         
-        if (event.code !== 1000) { // Non chiudere se è una chiusura normale
+        if (event.code !== 1000) {
           setTimeout(() => this.establishConnection(symbol), 2000);
         }
       };
@@ -150,8 +163,15 @@ export class SignalsService {
       this.ws = null;
     }
     this.isConnected = false;
-    this.subject?.complete();
-    this.subject = undefined;
+    
+    // ✅ Controllo di sicurezza per subject
+    if (this.subject) {
+      this.subject.complete();
+      this.subject = null;
+    }
+    
+    this.reconnectAttempts = 0;
+    console.log('🔌 SignalsService disconnesso');
   }
 
   setSimulationEnabled(enabled: boolean) {
@@ -165,5 +185,10 @@ export class SignalsService {
 
   getConnectionStatus(): boolean {
     return this.isConnected;
+  }
+
+  // ✅ Metodo per verificare se il subject è attivo
+  isSubjectActive(): boolean {
+    return this.subject !== null && !this.subject.closed;
   }
 }

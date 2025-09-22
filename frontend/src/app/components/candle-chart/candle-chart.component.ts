@@ -216,7 +216,7 @@ export class CandleChartComponent implements OnInit, OnDestroy, OnChanges {
       this.candles.sort((a, b) => a.t - b.t);
       
       // Mantieni massimo 100 candele
-      if (this.candles.length > 100) {
+      if (this.candles.length > 50) {
         this.candles.shift();
       }
       

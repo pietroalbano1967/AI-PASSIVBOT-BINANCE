@@ -1,10 +1,11 @@
 from fastapi import APIRouter, WebSocket, Query
 from starlette.websockets import WebSocketDisconnect
-from binance import AsyncClient, BinanceSocketManager
+from binance import AsyncClient, BinanceSocketManager, Client
 import numpy as np, time, pandas as pd
 from .ai_utils import compute_features, models, FEATURE_COLUMNS
 import json, pathlib
-import asyncio  # ✅ IMPORT AGGIUNTA
+import asyncio
+import math
 
 router = APIRouter()
 
@@ -90,7 +91,7 @@ async def ws_signals(websocket: WebSocket, symbol: str = Query("BTCUSDT")):
     model = models.get(symbol_upper)
     if not model:
         print(f"⚠️  Modello non trovato per {symbol_upper}, uso BTCUSDT come fallback")
-        model = models.get("BTCUSDT")  # Fallback al modello BTC
+        model = models.get("BTCUSDT")
     
     if not model:
         error_msg = f"❌ Nessun modello disponibile per {symbol_upper}"
@@ -103,19 +104,31 @@ async def ws_signals(websocket: WebSocket, symbol: str = Query("BTCUSDT")):
 
     client = await AsyncClient.create()
     bsm = BinanceSocketManager(client)
-    
+
+    # ✅ Bootstrap iniziale con 50 candele storiche
+    closes, highs, lows, volumes = [], [], [], []
+    try:
+        rest_client = Client()
+        data = rest_client.get_klines(symbol=symbol_upper, interval="1m", limit=50)
+        closes = [float(c[4]) for c in data]
+        highs = [float(c[2]) for c in data]
+        lows = [float(c[3]) for c in data]
+        volumes = [float(c[5]) for c in data]
+        print(f"📂 Bootstrap: {len(closes)} candele storiche caricate per {symbol_upper}")
+    except Exception as e:
+        print(f"⚠️ Errore bootstrap storico per {symbol_upper}: {e}")
+
     try:
         # Usa interval più lungo per performance
         ts = bsm.kline_socket(symbol.lower(), interval="1m")
-        closes, highs, lows, volumes = [], [], [], []
         last_heartbeat = time.time()
 
         async with ts as stream:
             while True:
                 try:
-                    # ✅ AGGIUNGI TIMEOUT E HEARTBEAT
+                    # ✅ TIMEOUT E HEARTBEAT
                     msg = await asyncio.wait_for(stream.recv(), timeout=30.0)
-                    
+
                     # Invia heartbeat ogni 15 secondi
                     current_time = time.time()
                     if current_time - last_heartbeat > 15:
@@ -129,16 +142,16 @@ async def ws_signals(websocket: WebSocket, symbol: str = Query("BTCUSDT")):
                             print(f"💓 Heartbeat inviato per {symbol_upper}")
                         except:
                             break
-                    
+
                     k = msg["k"]
                     print(f"📡 Dati ricevuti per {symbol_upper}: {k['c']} (chiuso: {k['x']})")
-                    
+
                     closes.append(float(k["c"]))
                     highs.append(float(k["h"]))
                     lows.append(float(k["l"]))
                     volumes.append(float(k["v"]))
-                    
-                    # Mantieni solo ultimi 100 punti per performance
+
+                    # Mantieni solo ultimi 100 punti
                     closes, highs, lows, volumes = closes[-100:], highs[-100:], lows[-100:], volumes[-100:]
 
                     if len(closes) < 20:
@@ -147,7 +160,7 @@ async def ws_signals(websocket: WebSocket, symbol: str = Query("BTCUSDT")):
 
                     # ✅ PREPARAZIONE DATI
                     df = pd.DataFrame({
-                        "open": closes, "close": closes, "high": highs, 
+                        "open": closes, "close": closes, "high": highs,
                         "low": lows, "volume": volumes
                     })
 
@@ -158,7 +171,6 @@ async def ws_signals(websocket: WebSocket, symbol: str = Query("BTCUSDT")):
                             print("⚠️  DataFrame vuoto dopo compute_features")
                             continue
 
-                        # ✅ ASSICURA TUTTE LE COLONNE
                         for col in FEATURE_COLUMNS:
                             if col not in df.columns:
                                 df[col] = 0.0
@@ -203,26 +215,32 @@ async def ws_signals(websocket: WebSocket, symbol: str = Query("BTCUSDT")):
                             # ✅ CALCOLO MACD
                             last_macd, last_signal, last_hist = compute_macd(df["close"].values)
 
-                            # ✅ INVIO DATI AL CLIENT
+                            # ✅ FIX RSI
+                            rsi_val = last_row.get("rsi", 50)
+                            if rsi_val is None or math.isnan(rsi_val):
+                                rsi_val = 50.0
+                            
+                            # ✅ Calcolo MACD (manuale, sempre stesso formato)
+                            last_macd, last_signal, last_hist = compute_macd(df["close"].values)
+                            # ✅ INVIO DATI
                             try:
                                 payload = {
                                     "symbol": symbol_upper,
                                     "close": price,
                                     "ma5": float(last_row.get("ma5", 0)),
                                     "ma20": float(last_row.get("ma20", 0)),
-                                    "rsi": float(last_row.get("rsi", 50)),
-                                    "macd": {
-                                        "macd": last_macd,
-                                        "signal": last_signal,
-                                        "hist": last_hist
-                                    },
+                                    "rsi": float(rsi_val),
+                                    "macd": {   # 👈 sempre oggetto con 3 valori
+                                    "macd": last_macd,
+                                    "signal": last_signal,
+                                    "hist": last_hist
+                                },
                                     "signal": signal,
                                     "confidence": round(confidence, 3),
                                     "probs": probs_dict,
                                     "action": action,
                                     "t": ts_now
                                 }
-                                
                                 await websocket.send_json(payload)
                                 print(f"📤 Inviati dati a client: {payload['signal']} ({confidence})")
 

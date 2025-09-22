@@ -16,67 +16,80 @@ export type Candle = {
 @Injectable({ providedIn: 'root' })
 export class CandleService {
   private baseUrl = 'http://localhost:8000';
+  private ws: WebSocket | null = null;
+  private subject = new Subject<Candle>();
+  private currentSymbol: string | null = null;
 
   constructor(private http: HttpClient) {}
 
-  // Ottieni dati storici via REST
+  // 📊 Dati storici via REST
   getHistoricalData(symbol: string, limit: number = 50): Observable<any[]> {
     console.log(`📊 Richiedo dati storici per ${symbol}`);
-    return this.http.get<any[]>(`${this.baseUrl}/candles?symbol=${symbol}&limit=${limit}`).pipe(
-      catchError(error => {
-        console.error('❌ Errore caricamento dati storici:', error);
-        return of(this.generateSampleData(symbol, limit));
-      })
-    );
+    return this.http
+      .get<any[]>(`${this.baseUrl}/candles?symbol=${symbol}&limit=${limit}`)
+      .pipe(
+        catchError(error => {
+          console.error('❌ Errore caricamento dati storici:', error);
+          return of(this.generateSampleData(symbol, limit));
+        })
+      );
   }
 
-  // Crea WebSocket per dati real-time
+  // 🔗 WebSocket persistente
   createWebSocket(symbol: string): Subject<Candle> {
-    const subject = new Subject<Candle>();
-    const wsUrl = `ws://localhost:8000/ws/candles1s?symbol=${symbol.toLowerCase()}`;
-    
-    console.log(`🔗 Creando WebSocket: ${wsUrl}`);
-    
-    try {
-      const ws = new WebSocket(wsUrl);
-
-      ws.onopen = () => {
-        console.log('✅ WebSocket connesso per candele');
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          const candle = this.parseCandle(data);
-          subject.next(candle);
-        } catch (error) {
-          console.error('❌ Errore parsing candela:', error, event.data);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('❌ WebSocket error:', error);
-        subject.error(error);
-      };
-
-      ws.onclose = () => {
-        console.log('🔌 WebSocket chiuso');
-        subject.complete();
-      };
-
-    } catch (error) {
-      console.error('❌ Errore creazione WebSocket:', error);
-      subject.error(error);
+    // Se già connesso allo stesso simbolo → riuso
+    if (
+      this.ws &&
+      this.currentSymbol === symbol.toUpperCase() &&
+      this.ws.readyState === WebSocket.OPEN
+    ) {
+      console.log(`♻️ Riuso connessione candele per ${symbol}`);
+      return this.subject;
     }
-    
-    return subject;
+
+    // Se connessione aperta per altro simbolo → chiudo
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+
+    this.currentSymbol = symbol.toUpperCase();
+    const wsUrl = `ws://localhost:8000/ws/candles1s?symbol=${this.currentSymbol.toLowerCase()}`;
+    console.log(`🔗 Connessione candele a: ${wsUrl}`);
+
+    this.ws = new WebSocket(wsUrl);
+
+    this.ws.onopen = () => {
+      console.log(`✅ WebSocket candele connesso per ${this.currentSymbol}`);
+    };
+
+    this.ws.onmessage = event => {
+      try {
+        const data = JSON.parse(event.data);
+        const candle = this.parseCandle(data);
+        this.subject.next(candle);
+      } catch (error) {
+        console.error('❌ Errore parsing candela:', error, event.data);
+      }
+    };
+
+    this.ws.onerror = error => {
+      console.error('❌ Errore WebSocket candele:', error);
+      this.subject.error(error);
+    };
+
+    this.ws.onclose = () => {
+      console.warn(`🔌 WebSocket candele chiuso per ${this.currentSymbol}`);
+      // opzionale: ricreare subject se vuoi gestire reconnect
+      this.subject = new Subject<Candle>();
+    };
+
+    return this.subject;
   }
 
   private parseCandle(data: any): Candle {
-    // I dati dal WebSocket hanno questa struttura:
-    // {"t":1758489139000,"s":"BTCUSDT","o":115279.31,"h":115279.31,"l":115279.31,"c":115279.31,"v":0.00095,"x":true}
     return {
-      t: data.t, // già in millisecondi
+      t: data.t,
       o: parseFloat(data.o),
       h: parseFloat(data.h),
       l: parseFloat(data.l),
@@ -90,13 +103,13 @@ export class CandleService {
     console.log(`🔄 Generazione dati di esempio per ${symbol}`);
     const now = Date.now();
     const data: any[] = [];
-    
+
     for (let i = limit; i > 0; i--) {
       const basePrice = 50000 + Math.random() * 5000;
       const volatility = Math.random() * 200;
-      
+
       data.push({
-        t: (now - (i * 60000)) * 1000, // converto in ms come il WebSocket
+        t: now - i * 60000,
         o: basePrice,
         h: basePrice + volatility,
         l: basePrice - volatility,
@@ -104,7 +117,17 @@ export class CandleService {
         v: 100 + Math.random() * 50
       });
     }
-    
+
     return data;
+  }
+
+  // ✋ chiusura manuale (es. logout)
+  disconnect() {
+    if (this.ws) {
+      console.log('🔌 Disconnessione manuale WebSocket candele');
+      this.ws.close();
+      this.ws = null;
+      this.currentSymbol = null;
+    }
   }
 }

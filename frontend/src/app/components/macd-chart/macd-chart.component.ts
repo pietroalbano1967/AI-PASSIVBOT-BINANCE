@@ -175,60 +175,50 @@ export class MacdChartComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   private addMACDData(data: SignalData) {
-    console.log('📊 MACD Data received:', data);
-    
-    if (!data.macd) {
-      console.warn('⚠️ MACD data missing from signal');
-      return;
-    }
-
-    const timestamp = new Date(data.t * 1000);
-
-    // Aggiorna le serie
-    const macdLineData = [...(this.chartOptions.series[0].data as any[])];
-    const signalLineData = [...(this.chartOptions.series[1].data as any[])];
-    const histogramData = [...(this.chartOptions.series[2].data as any[])];
-
-    macdLineData.push({ x: timestamp, y: data.macd.macd });
-    signalLineData.push({ x: timestamp, y: data.macd.signal });
-    histogramData.push({ x: timestamp, y: data.macd.hist });
-
-    // Mantieni solo gli ultimi 50 punti
-    if (macdLineData.length > 50) {
-      macdLineData.shift();
-      signalLineData.shift();
-      histogramData.shift();
-    }
-
-    this.chartOptions = {
-      ...this.chartOptions,
-      series: [
-        {
-          name: 'MACD Line',
-          type: 'line',
-          data: macdLineData
-        },
-        {
-          name: 'Signal Line',
-          type: 'line',
-          data: signalLineData
-        },
-        {
-          name: 'Histogram',
-          type: 'column',
-          data: histogramData
-        }
-      ],
-      title: {
-        ...this.chartOptions.title,
-        text: `MACD (12,26,9) - ${this.symbol} - MACD: ${data.macd.macd.toFixed(4)}`
-      }
-    };
-
-    this.hasData = macdLineData.length > 0;
-    this.loading = false;
-    this.cdr.detectChanges();
+  if (
+    !data.macd ||
+    isNaN(data.macd.macd) ||
+    isNaN(data.macd.signal) ||
+    isNaN(data.macd.hist)
+  ) {
+    console.warn('⚠️ MACD invalido, ignorato:', data.macd);
+    return;
   }
+
+  const timestamp = new Date(data.t * 1000);
+
+  const macdLineData = [...(this.chartOptions.series[0].data as any[])];
+  const signalLineData = [...(this.chartOptions.series[1].data as any[])];
+  const histogramData = [...(this.chartOptions.series[2].data as any[])];
+
+  macdLineData.push({ x: timestamp, y: data.macd.macd });
+  signalLineData.push({ x: timestamp, y: data.macd.signal });
+  histogramData.push({ x: timestamp, y: data.macd.hist });
+
+  if (macdLineData.length > 50) {
+    macdLineData.shift();
+    signalLineData.shift();
+    histogramData.shift();
+  }
+
+  this.chartOptions = {
+    ...this.chartOptions,
+    series: [
+      { name: 'MACD Line', type: 'line', data: macdLineData },
+      { name: 'Signal Line', type: 'line', data: signalLineData },
+      { name: 'Histogram', type: 'column', data: histogramData }
+    ],
+    title: {
+      ...this.chartOptions.title,
+      text: `MACD (12,26,9) - ${this.symbol} - MACD: ${data.macd.macd.toFixed(4)}`
+    }
+  };
+
+  this.hasData = macdLineData.length > 0;
+  this.loading = false;
+  this.cdr.detectChanges();
+}
+
    // Aggiungi questo metodo pubblico
 retryConnection() {
   this.errorMessage = '';
